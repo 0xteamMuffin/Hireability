@@ -46,6 +46,38 @@ export interface VapiToolCallResponse {
 
 export type QuestionCategory = 'technical' | 'behavioral' | 'mixed';
 
+export interface VapiUserData {
+  targetRole: string | null;
+  targetCompany: string | null;
+  level: string | null;
+}
+
+export interface VapiUserDataResponse {
+  error: string | null;
+  data: VapiUserData | null;
+}
+
+export interface VapiResumeData {
+  fileName: string;
+  status: string;
+  parsedData: Record<string, unknown> | null;
+  confidence: number | null;
+}
+
+export interface VapiResumeDataResponse {
+  error: string | null;
+  data: VapiResumeData | null;
+}
+
+export interface UserContextResponse {
+  error: string | null;
+  prompt: string;
+  data: {
+    profile: VapiUserData;
+    resume: VapiResumeData | null;
+  } | null;
+}
+
 export interface GetQuestionsArgs {
   category?: QuestionCategory;
   limit?: number;

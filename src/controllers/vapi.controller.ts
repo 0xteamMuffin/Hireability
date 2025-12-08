@@ -5,6 +5,7 @@ import {
   VapiToolCallResponse,
   GetQuestionsArgs,
 } from '../types/vapi.types';
+import '../types/auth.types';
 
 /**
  * Extracts userId from Vapi call context.
@@ -81,6 +82,28 @@ export const getResumeData = async (
   }
 };
 
+export const getUserContext = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const body = req.body as VapiToolCallRequest;
+    const toolCallId = body.message?.toolCallList?.[0]?.id || '';
+    const userId = extractUserId(req);
+
+    if (!userId) {
+      res.json(buildResponse(toolCallId, { error: 'userId not found in call metadata' }));
+      return;
+    }
+
+    const result = await vapiService.getUserContext(userId);
+    res.json(buildResponse(toolCallId, result));
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getQuestions = async (
   req: Request,
   res: Response,
@@ -99,6 +122,39 @@ export const getQuestions = async (
 
     const result = await vapiService.getQuestions(userId, args);
     res.json(buildResponse(toolCallId, result));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUserContextForUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const result = await vapiService.getUserContext(userId);
+
+    if (result.error) {
+      res.status(400).json({ success: false, error: result.error, data: null });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        prompt: result.prompt,
+        profile: result.data?.profile || null,
+        resume: result.data?.resume || null,
+      },
+    });
   } catch (error) {
     next(error);
   }
