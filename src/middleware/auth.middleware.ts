@@ -1,8 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken, JWTPayload } from '../utils/jwt.util';
+import { verifyToken } from '../utils/jwt.util';
 
 export interface AuthRequest extends Request {
-  user?: JWTPayload;
+  user?: {
+    id: string;
+    email: string;
+  };
 }
 
 export const authenticate = (
@@ -25,7 +28,10 @@ export const authenticate = (
 
     try {
       const decoded = verifyToken(token);
-      (req as AuthRequest).user = decoded;
+      (req as AuthRequest).user = {
+        id: decoded.userId,
+        email: decoded.email,
+      };
       next();
     } catch (error) {
       res.status(401).json({
@@ -40,4 +46,6 @@ export const authenticate = (
     });
   }
 };
+
+export const authMiddleware = authenticate;
 

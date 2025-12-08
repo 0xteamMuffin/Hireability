@@ -43,7 +43,7 @@ export class AuthController {
 
   async getMe(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.userId;
+      const userId = (req as any).user?.id;
 
       if (!userId) {
         res.status(401).json({
