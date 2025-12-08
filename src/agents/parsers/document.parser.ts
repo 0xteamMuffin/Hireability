@@ -1,9 +1,10 @@
 import { BaseAgent, AgentResult } from '../base/base.agent';
 import genai, { geminiConfig } from '../../utils/gemini.util';
 import { ProcessingStatus } from '../../types/resume.types';
-
+import dotenv from 'dotenv';
+dotenv.config();
 const AGENT_VERSION = '1.0.0';
-const MODEL = 'gemini-flash-latest';
+const MODEL = process.env.MODEL_NAME || 'gemini-flash-latest';
 
 export class DocumentParserAgent extends BaseAgent {
   constructor() {
