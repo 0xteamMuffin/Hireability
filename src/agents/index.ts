@@ -1,2 +1,2 @@
 export { BaseAgent } from './base/base.agent';
-export { ResumeParserAgent, resumeParserAgent } from './parsers/resume.parser';
+export { DocumentParserAgent, documentParserAgent } from './parsers/document.parser';

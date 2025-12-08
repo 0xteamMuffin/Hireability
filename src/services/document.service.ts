@@ -1,6 +1,6 @@
 import { prisma } from '../utils/prisma.util';
 import pdf from 'pdf-parse';
-import { resumeParserAgent } from '../agents';
+import { documentParserAgent } from '../agents';
 import { DocumentType, ProcessingStatus, DocumentResponse } from '../types/resume.types';
 import { Prisma } from '@prisma/client';
 
@@ -33,14 +33,14 @@ export const uploadAndParse = async (
     },
   });
 
-  const result = await resumeParserAgent.parse(rawText);
+  const result = await documentParserAgent.parse(rawText);
 
   document = await prisma.document.update({
     where: { id: document.id },
     data: {
       status: result.status,
       parsedData: result.output as Prisma.InputJsonValue,
-      agentVersion: resumeParserAgent.getVersion(),
+      agentVersion: documentParserAgent.getVersion(),
       confidence: result.confidence,
       tokenUsage: result.tokenUsage,
       processedAt: new Date(),

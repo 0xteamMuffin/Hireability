@@ -5,21 +5,21 @@ import { ProcessingStatus } from '../../types/resume.types';
 const AGENT_VERSION = '1.0.0';
 const MODEL = 'gemini-flash-latest';
 
-export class ResumeParserAgent extends BaseAgent {
+export class DocumentParserAgent extends BaseAgent {
   constructor() {
     super(AGENT_VERSION);
   }
 
   async parse(rawText: string): Promise<AgentResult> {
     try {
-      const prompt = `Parse this resume and extract key information. Return a JSON object with:
+      const prompt = `Parse this document and extract key information. Return a JSON object with:
 - summary: brief professional summary
 - skills: array of skills
 - experience: array of {company, role, duration, highlights}
 - education: array of {institution, degree, field, year}
 - projects: array of {name, description, technologies} (if any)
 
-Resume:
+Document:
 ${rawText}
 
 Return ONLY valid JSON, no extra text.`;
@@ -59,4 +59,4 @@ Return ONLY valid JSON, no extra text.`;
   }
 }
 
-export const resumeParserAgent = new ResumeParserAgent();
+export const documentParserAgent = new DocumentParserAgent();
