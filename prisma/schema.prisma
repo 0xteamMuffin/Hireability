@@ -17,6 +17,67 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  profile   UserProfile?
+  documents Document[]
+
   @@map("users")
 }
 
+model UserProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  targetRole    String?
+  targetCompany String?
+  level         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_profiles")
+}
+
+// ===========================================
+// AGENTIC PARSER - Simple & Generic
+// ===========================================
+
+model Document {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      DocumentType
+  fileName  String
+  mimeType  String?
+  rawText   String?
+  
+  // Processing
+  status     ProcessingStatus @default(PENDING)
+  parsedData Json?
+  
+  // Agent metadata
+  agentVersion String?
+  confidence   Float?
+  tokenUsage   Int?
+  processedAt  DateTime?
+  error        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("documents")
+}
+
+enum DocumentType {
+  RESUME
+  JOB_DESCRIPTION
+  OTHER
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}

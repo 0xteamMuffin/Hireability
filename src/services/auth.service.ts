@@ -7,7 +7,6 @@ export class AuthService {
   async signup(data: SignupRequest): Promise<AuthResponse> {
     const { username, email, password } = data;
 
-    // Check if user already exists
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [{ email }, { username }],
@@ -23,10 +22,8 @@ export class AuthService {
       }
     }
 
-    // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create user
     const user = await prisma.user.create({
       data: {
         username,
@@ -42,22 +39,17 @@ export class AuthService {
       },
     });
 
-    // Generate token
     const token = generateToken({
       userId: user.id,
       email: user.email,
     });
 
-    return {
-      user,
-      token,
-    };
+    return { user, token };
   }
 
   async signin(data: SigninRequest): Promise<AuthResponse> {
     const { email, password } = data;
 
-    // Find user by email
     const user = await prisma.user.findUnique({
       where: { email },
     });
@@ -66,20 +58,17 @@ export class AuthService {
       throw new Error('Invalid email or password');
     }
 
-    // Verify password
     const isPasswordValid = await comparePassword(password, user.password);
 
     if (!isPasswordValid) {
       throw new Error('Invalid email or password');
     }
 
-    // Generate token
     const token = generateToken({
       userId: user.id,
       email: user.email,
     });
 
-    // Return user without password
     const { password: _, ...userWithoutPassword } = user;
 
     return {
