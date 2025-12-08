@@ -1,8 +1,9 @@
 import { BaseAgent, AgentResult } from '../base/base.agent';
-import openai from '../../utils/openai.util';
+import genai, { geminiConfig } from '../../utils/gemini.util';
 import { ProcessingStatus } from '../../types/resume.types';
 
 const AGENT_VERSION = '1.0.0';
+const MODEL = 'gemini-flash-latest';
 
 export class ResumeParserAgent extends BaseAgent {
   constructor() {
@@ -23,18 +24,22 @@ ${rawText}
 
 Return ONLY valid JSON, no extra text.`;
 
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: 'You are a resume parser. Return valid JSON only.' },
-          { role: 'user', content: prompt },
+      const response = await genai.models.generateContent({
+        model: MODEL,
+        config: {
+          ...geminiConfig,
+          responseMimeType: 'application/json',
+        },
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }],
+          },
         ],
-        response_format: { type: 'json_object' },
-        temperature: 0.1,
       });
 
-      const content = response.choices[0]?.message?.content || '{}';
-      const tokenUsage = response.usage?.total_tokens || 0;
+      const content = response.text || '{}';
+      const tokenUsage = response.usageMetadata?.totalTokenCount || 0;
 
       return {
         output: JSON.parse(content),
