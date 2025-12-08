@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import profileRoutes from './routes/profile.routes';
 import documentRoutes from './routes/document.routes';
+import vapiRoutes from './routes/vapi.routes';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 
 dotenv.config();
@@ -28,6 +29,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/vapi', vapiRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

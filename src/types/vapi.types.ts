@@ -1,0 +1,60 @@
+/**
+ * Vapi Custom Tool Types
+ * These types define the request/response structure for Vapi tool calls.
+ * Vapi sends tool call requests to our server URL, and we respond with results.
+ */
+
+export interface VapiToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
+export interface VapiToolCallRequest {
+  message: {
+    timestamp: number;
+    type: 'tool-calls';
+    toolCallList: VapiToolCall[];
+    call?: {
+      id: string;
+      assistantId?: string;
+      assistantOverrides?: {
+        variableValues?: {
+          userId?: string;
+          [key: string]: unknown;
+        };
+        [key: string]: unknown;
+      };
+    };
+    artifact?: {
+      variableValues?: {
+        userId?: string;
+        [key: string]: unknown;
+      };
+    };
+  };
+}
+
+export interface VapiToolResult {
+  toolCallId: string;
+  result: string;
+}
+
+export interface VapiToolCallResponse {
+  results: VapiToolResult[];
+}
+
+export type QuestionCategory = 'technical' | 'behavioral' | 'mixed';
+
+export interface GetQuestionsArgs {
+  category?: QuestionCategory;
+  limit?: number;
+}
+
+export interface GeneratedQuestion {
+  id: string;
+  question: string;
+  category: QuestionCategory;
+  difficulty: 'easy' | 'medium' | 'hard';
+  context?: string;
+}
