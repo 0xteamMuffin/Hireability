@@ -1,14 +1,15 @@
 import { prisma } from '../utils/prisma.util';
-import pdf from 'pdf-parse';
+import { PDFParse } from 'pdf-parse';
 import { documentParserAgent } from '../agents';
 import { DocumentType, ProcessingStatus, DocumentResponse } from '../types/resume.types';
 import { Prisma } from '@prisma/client';
 
 const extractText = async (buffer: Buffer, mimeType: string): Promise<string> => {
   if (mimeType === 'application/pdf') {
-    const pdfParse = pdf as unknown as (buffer: Buffer) => Promise<{ text: string }>;
-    const data = await pdfParse(buffer);
-    return data.text;
+    const uint8Array = new Uint8Array(buffer);
+    const parser = new PDFParse(uint8Array);
+    const result = await parser.getText();
+    return typeof result === 'string' ? result : result.text || '';
   }
   throw new Error('Unsupported file type');
 };
