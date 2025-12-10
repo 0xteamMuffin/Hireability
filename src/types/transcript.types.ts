@@ -1,3 +1,5 @@
+import { AnalysisDimension } from './interview.types';
+
 export interface SaveTranscriptRequest {
   interviewId: string;
   assistantId?: string | null;
@@ -11,5 +13,6 @@ export interface SaveTranscriptRequest {
     timestamp: string;
     isFinal?: boolean;
   }>;
+  professional?: AnalysisDimension;
 }
 

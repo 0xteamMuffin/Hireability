@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as transcriptService from '../services/transcript.service';
 import { SaveTranscriptRequest } from '../types/transcript.types';
+import * as interviewService from '../services/interview.service';
 
 export const saveTranscript = async (
   req: Request,
@@ -28,6 +29,15 @@ export const saveTranscript = async (
 
     try {
       const saved = await transcriptService.saveTranscript(userId, body);
+
+      // Optionally persist professional demeanor dimension if provided
+      if (body.professional) {
+        await interviewService.saveAnalysis(userId, {
+          interviewId: body.interviewId,
+          professional: body.professional,
+        });
+      }
+
       res.json({ success: true, data: saved });
     } catch (err) {
       res.status(400).json({ success: false, message: err instanceof Error ? err.message : 'Failed to save transcript' });

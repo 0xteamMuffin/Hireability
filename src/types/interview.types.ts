@@ -23,3 +23,14 @@ export interface SaveAnalysisRequest {
   modelVersion?: string | null;
 }
 
+export interface AnalysisResult {
+  technical?: AnalysisDimension;
+  problemSolving?: AnalysisDimension;
+  communication?: AnalysisDimension;
+  roleKnowledge?: AnalysisDimension;
+  experience?: AnalysisDimension;
+  professional?: AnalysisDimension;
+  overall?: AnalysisDimension;
+  modelVersion?: string | null;
+}
+

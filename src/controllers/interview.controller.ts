@@ -51,3 +51,76 @@ export const saveAnalysis = async (
   }
 };
 
+export const getInterviews = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const interviews = await interviewService.getInterviews(userId);
+    res.json({ success: true, data: interviews });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getInterviewById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const interviewId = req.params.id;
+    if (!interviewId) {
+      res.status(400).json({ success: false, message: 'interviewId is required' });
+      return;
+    }
+
+    try {
+      const interview = await interviewService.getInterviewById(userId, interviewId);
+      res.json({ success: true, data: interview });
+    } catch (err) {
+      res.status(404).json({ success: false, message: err instanceof Error ? err.message : 'Interview not found' });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const analyzeInterview = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const interviewId = req.params.id;
+    if (!interviewId) {
+      res.status(400).json({ success: false, message: 'interviewId is required' });
+      return;
+    }
+
+    const saved = await interviewService.analyzeInterview(userId, interviewId);
+    res.json({ success: true, data: saved });
+  } catch (error) {
+    next(error);
+  }
+};
+
