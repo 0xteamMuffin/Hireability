@@ -24,5 +24,6 @@ router.use(authMiddleware);
 
 router.post('/resume', upload.single('file'), documentController.uploadResume);
 router.get('/resume', documentController.getResumeData);
+router.get('/resume/review', documentController.getResumeReview);
 
 export default router;

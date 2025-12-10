@@ -65,6 +65,7 @@ model Document {
   // Processing
   status     ProcessingStatus @default(PENDING)
   parsedData Json?
+  review     String?  // Markdown review
   
   // Agent metadata
   agentVersion String?

@@ -1,6 +1,7 @@
 import { prisma } from '../utils/prisma.util';
 import { PDFParse } from 'pdf-parse';
 import { documentParserAgent } from '../agents';
+import { ResumeReviewGenerator } from '../agents/generators/resume-review.generator';
 import { DocumentType, ProcessingStatus, DocumentResponse } from '../types/resume.types';
 import { Prisma } from '@prisma/client';
 
@@ -80,3 +81,33 @@ export const getResumeData = async (userId: string): Promise<DocumentResponse | 
     createdAt: document.createdAt,
   };
 };
+
+export const getResumeReview = async (userId: string): Promise<string | null> => {
+  const document = await prisma.document.findFirst({
+    where: { userId, type: DocumentType.RESUME },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!document) return null;
+
+  // If review exists, return it
+  if (document.review) {
+    return document.review;
+  }
+
+  // If parsedData exists, generate review
+  if (document.parsedData) {
+    const generator = new ResumeReviewGenerator();
+    const review = await generator.generate(document.parsedData);
+
+    await prisma.document.update({
+      where: { id: document.id },
+      data: { review },
+    });
+
+    return review;
+  }
+
+  return null;
+};
+

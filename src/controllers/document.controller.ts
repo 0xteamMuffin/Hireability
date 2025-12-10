@@ -62,3 +62,29 @@ export const getResumeData = async (
     next(error);
   }
 };
+
+export const getResumeReview = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const review = await documentService.getResumeReview(userId);
+
+    if (!review) {
+      res.status(404).json({ success: false, message: 'No resume or review found' });
+      return;
+    }
+
+    res.json({ success: true, data: review });
+  } catch (error) {
+    next(error);
+  }
+};
+
