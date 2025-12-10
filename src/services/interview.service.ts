@@ -2,6 +2,7 @@ import { prisma } from '../utils/prisma.util';
 import { StartInterviewRequest, SaveAnalysisRequest, AnalysisResult } from '../types/interview.types';
 import genai, { geminiConfig } from '../utils/gemini.util';
 import { SaveTranscriptRequest } from '../types/transcript.types';
+import { FeedbackGeneratorAgent } from '../agents/generators/feedback.generator';
 
 export const getInterviews = async (userId: string) => {
   const db = prisma as any; // cast until Prisma types are regenerated
@@ -252,4 +253,130 @@ export const analyzeInterview = async (userId: string, interviewId: string) => {
   const saved = await saveAnalysis(userId, merged);
   return saved;
 };
+
+export const getStats = async (userId: string) => {
+  const db = prisma as any;
+
+  const interviews = await db.interview.findMany({
+    where: { userId },
+    include: {
+      analysis: true,
+    },
+  });
+
+  const totalInterviews = interviews.length;
+  
+  const totalDurationSeconds = interviews.reduce((acc: number, curr: any) => {
+    return acc + (curr.durationSeconds || 0);
+  }, 0);
+  const hoursPracticed = (totalDurationSeconds / 3600).toFixed(1);
+
+  let totalScore = 0;
+  let scoredInterviews = 0;
+
+  interviews.forEach((interview: any) => {
+    // Check if overall score exists in the JSON
+    const score = interview.analysis?.overall?.score;
+    if (typeof score === 'number') {
+      totalScore += score;
+      scoredInterviews++;
+    }
+  });
+
+  const avgScore = scoredInterviews > 0 ? Math.round(totalScore / scoredInterviews) : 0;
+
+  return {
+    totalInterviews,
+    avgScore: `${avgScore}%`,
+    hoursPracticed: `${hoursPracticed}h`,
+  };
+};
+
+export const generateAnalysis = async (userId: string, interviewId: string) => {
+  const db = prisma as any;
+
+  // 1. Get Interview with Transcripts
+  const interview = await db.interview.findFirst({
+    where: { id: interviewId, userId },
+    include: {
+      transcripts: true,
+    },
+  });
+
+  if (!interview) {
+    throw new Error('Interview not found');
+  }
+
+  // 2. Get User Profile for context
+  const userProfile = await db.userProfile.findUnique({
+    where: { userId },
+  });
+
+  // 3. Combine transcripts
+  let fullTranscriptText = '';
+  if (interview.transcripts && interview.transcripts.length > 0) {
+     // Sort by created at
+     const sorted = interview.transcripts.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+     
+     for (const t of sorted) {
+        if (typeof t.transcript === 'string') {
+            fullTranscriptText += t.transcript + '\n';
+        } else if (Array.isArray(t.transcript)) {
+            // Vapi message format usually: { role: 'user' | 'assistant', message: string } or { role, content }
+            fullTranscriptText += t.transcript.map((m: any) => {
+                const role = m.role || 'Unknown';
+                const content = m.message || m.content || m.text || JSON.stringify(m);
+                return `${role}: ${content}`;
+            }).join('\n') + '\n';
+        } else if (typeof t.transcript === 'object' && t.transcript !== null) {
+             // Try to extract message/content if it's a single object
+             const m = t.transcript as any;
+             const role = m.role || 'Unknown';
+             const content = m.message || m.content || m.text || JSON.stringify(m);
+             fullTranscriptText += `${role}: ${content}\n`;
+        }
+     }
+  }
+
+  if (!fullTranscriptText.trim()) {
+      throw new Error('No transcript available for analysis');
+  }
+
+  // 4. Generate Feedback
+  const agent = new FeedbackGeneratorAgent();
+  const result = await agent.generate({
+    transcript: fullTranscriptText,
+    targetRole: userProfile?.targetRole,
+    targetCompany: userProfile?.targetCompany,
+    level: userProfile?.level,
+  });
+
+  // 5. Save Analysis
+  return db.interviewAnalysis.upsert({
+    where: { interviewId },
+    update: {
+      technical: result.technical,
+      problemSolving: result.problemSolving,
+      communication: result.communication,
+      roleKnowledge: result.roleKnowledge,
+      experience: result.experience,
+      professional: result.professional,
+      overall: result.overall,
+      modelVersion: process.env.MODEL_NAME || 'gemini-flash-latest',
+    },
+    create: {
+      interviewId,
+      technical: result.technical,
+      problemSolving: result.problemSolving,
+      communication: result.communication,
+      roleKnowledge: result.roleKnowledge,
+      experience: result.experience,
+      professional: result.professional,
+      overall: result.overall,
+      modelVersion: process.env.MODEL_NAME || 'gemini-flash-latest', 
+    },
+  });
+};
+
+
 

@@ -161,3 +161,59 @@ export const getUserContextForUser = async (
     next(error);
   }
 };
+
+export const evaluateAnswer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const body = req.body as VapiToolCallRequest;
+    const toolCallId = body.message?.toolCallList?.[0]?.id || '';
+    const args = body.message?.toolCallList?.[0]?.arguments as any;
+    
+    const result = await vapiService.evaluateAnswer(args?.question || '', args?.answer || '');
+    res.json(buildResponse(toolCallId, result));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const provideHint = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const body = req.body as VapiToolCallRequest;
+    const toolCallId = body.message?.toolCallList?.[0]?.id || '';
+    const args = body.message?.toolCallList?.[0]?.arguments as any;
+    
+    const result = await vapiService.provideHint(args?.question || '');
+    res.json(buildResponse(toolCallId, result));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const endRound = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const body = req.body as VapiToolCallRequest;
+    const toolCallId = body.message?.toolCallList?.[0]?.id || '';
+    const args = body.message?.toolCallList?.[0]?.arguments as any;
+    
+    // Assuming interviewId is passed in args or we can derive it. 
+    // For now, using a placeholder or args.interviewId
+    const result = await vapiService.endRound(args?.interviewId || 'unknown', args?.roundType || 'general');
+    res.json(buildResponse(toolCallId, result));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const generateReport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const body = req.body as VapiToolCallRequest;
+    const toolCallId = body.message?.toolCallList?.[0]?.id || '';
+    const args = body.message?.toolCallList?.[0]?.arguments as any;
+    
+    const result = await vapiService.generateReport(args?.interviewId || 'unknown');
+    res.json(buildResponse(toolCallId, result));
+  } catch (error) {
+    next(error);
+  }
+};
+
+

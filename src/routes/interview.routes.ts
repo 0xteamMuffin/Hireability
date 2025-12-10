@@ -5,6 +5,7 @@ import * as interviewController from '../controllers/interview.controller';
 const router = Router();
 
 router.get('/', authMiddleware, interviewController.getInterviews);
+router.get('/stats', authMiddleware, interviewController.getStats);
 router.get('/:id', authMiddleware, interviewController.getInterviewById);
 router.post('/', authMiddleware, interviewController.startInterview);
 router.post('/analysis', authMiddleware, interviewController.saveAnalysis);

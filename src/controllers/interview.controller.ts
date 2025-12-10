@@ -117,10 +117,30 @@ export const analyzeInterview = async (
       return;
     }
 
-    const saved = await interviewService.analyzeInterview(userId, interviewId);
+    const saved = await interviewService.generateAnalysis(userId, interviewId);
     res.json({ success: true, data: saved });
   } catch (error) {
     next(error);
   }
 };
+
+export const getStats = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const stats = await interviewService.getStats(userId);
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    next(error);
+  }
+};
+
 

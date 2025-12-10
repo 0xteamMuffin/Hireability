@@ -181,3 +181,42 @@ export const getQuestions = async (
 
   return { error: null, data: result.questions };
 };
+
+export const evaluateAnswer = async (question: string, answer: string) => {
+  console.log('Evaluating:', question, answer);
+  // TODO: Integrate with LLM for real evaluation
+  return {
+    score: 7,
+    feedback: "That's a reasonable approach. Can you elaborate on the trade-offs?",
+    isCorrect: true
+  };
+};
+
+export const provideHint = async (question: string) => {
+  console.log('Providing hint for:', question);
+  // TODO: Integrate with LLM for real hint generation
+  return {
+    hint: "Consider using a hash map to optimize the lookup time."
+  };
+};
+
+export const endRound = async (interviewId: string, roundType: string) => {
+  console.log('Ending round:', roundType, 'for interview:', interviewId);
+  // TODO: Update interview state in DB
+  return {
+    message: `Round ${roundType} completed.`,
+    nextRound: "technical"
+  };
+};
+
+export const generateReport = async (interviewId: string) => {
+  console.log('Generating report for:', interviewId);
+  // TODO: Aggregate real scores from DB
+  return {
+    totalScore: 85,
+    summary: "Strong technical skills, good communication.",
+    improvementPlan: ["Practice system design", "Review dynamic programming"]
+  };
+};
+
+
