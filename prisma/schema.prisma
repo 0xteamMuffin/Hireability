@@ -27,6 +27,8 @@ model User {
   documents      Document[]
   targetCompanies TargetCompany[]
   settings       UserSettings?
+  interviews     Interview[]
+  interviewTranscripts InterviewTranscript[]
 
   @@map("users")
 }
@@ -119,4 +121,56 @@ model UserSettings {
   updatedAt DateTime @updatedAt
 
   @@map("user_settings")
+}
+
+model InterviewTranscript {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interviewId     String
+  interview       Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  assistantId     String?
+  callId          String?
+  startedAt       DateTime?
+  endedAt         DateTime?
+  durationSeconds Int?
+  transcript      Json
+  createdAt       DateTime @default(now())
+
+  @@map("interview_transcripts")
+}
+
+model Interview {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assistantId     String?
+  startedAt       DateTime @default(now())
+  endedAt         DateTime?
+  durationSeconds Int?
+  contextPrompt   String?
+  callId          String?
+  createdAt       DateTime @default(now())
+
+  transcripts     InterviewTranscript[]
+  analysis        InterviewAnalysis?
+
+  @@map("interviews")
+}
+
+model InterviewAnalysis {
+  id             String   @id @default(cuid())
+  interviewId    String   @unique
+  interview      Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  technical      Json?
+  problemSolving Json?
+  communication  Json?
+  roleKnowledge  Json?
+  experience     Json?
+  professional   Json?
+  overall        Json?
+  modelVersion   String?
+  createdAt      DateTime @default(now())
+
+  @@map("interview_analysis")
 }
