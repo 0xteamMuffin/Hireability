@@ -71,7 +71,8 @@ export interface VapiResumeDataResponse {
 
 export interface UserContextResponse {
   error: string | null;
-  prompt: string;
+  systemPrompt: string;
+  firstMessage: string;
   data: {
     profile: VapiUserData;
     resume: VapiResumeData | null;

@@ -1,5 +1,6 @@
 import * as profileService from './profile.service';
 import * as documentService from './document.service';
+import * as targetService from './target.service';
 import {
   GetQuestionsArgs,
   GeneratedQuestion,
@@ -17,14 +18,17 @@ const trimContext = (value: string): string => {
   return `${value.slice(0, CONTEXT_CHAR_LIMIT)}... [truncated]`;
 };
 
-const buildContextPrompt = (
+const buildSystemPrompt = (
   profile: NonNullable<VapiUserDataResponse['data']>,
   resume: VapiResumeDataResponse['data'] | null
 ): string => {
+  const company = profile.targetCompany || 'a top tech company';
+  const role = profile.targetRole || 'Software Engineer';
+
   const profileSection = [
     'Candidate Profile:',
-    `- Target Role: ${profile.targetRole || 'Not provided'}`,
-    `- Target Company: ${profile.targetCompany || 'Not provided'}`,
+    `- Target Role: ${role}`,
+    `- Target Company: ${company}`,
     `- Seniority Level: ${profile.level || 'Not provided'}`,
   ].join('\n');
 
@@ -41,14 +45,36 @@ const buildContextPrompt = (
     `- Parsed details (JSON): ${resumeSummary}`,
   ].join('\n');
 
-  const guidance = [
-    'Guidelines:',
-    '- Use the provided profile/resume context to tailor interview questions.',
-    '- If resume data looks incomplete, ask concise follow-up questions to fill gaps.',
-    '- Keep answers concise and structured.',
+  const instructions = [
+    `You are an expert technical interviewer at ${company}.`,
+    `Your goal is to conduct a realistic, rigorous, yet encouraging interview for the ${role} position.`,
+    '',
+    'INTERVIEW GUIDELINES:',
+    '1.  **Persona**: Act exactly like a real interviewer. Be professional, attentive, and structured. Do not break character.',
+    '2.  **Flow**:',
+    '    -   **Introduction**: Briefly welcome the candidate and ask them to introduce themselves.',
+    '    -   **Experience Deep Dive**: Ask 1-2 questions about their recent work or specific projects from their resume.',
+    '    -   **Technical Assessment**: Ask 2-3 technical questions relevant to the role and their stack.',
+    '    -   **Behavioral**: Ask 1 behavioral question (e.g., conflict resolution, leadership).',
+    '    -   **Closing**: Ask if they have any questions for you.',
+    '3.  **Interaction Style**:',
+    '    -   Listen actively. If an answer is vague, ask a follow-up question.',
+    '    -   If the candidate struggles, provide a small hint but do not give the answer immediately.',
+    '    -   Keep responses concise (under 3 sentences usually) to let the candidate speak more.',
+    '4.  **Context Usage**:',
+    '    -   Reference their specific projects (e.g., "I saw you worked on Project X...") to show you\'ve read their resume.',
+    '    -   Tailor questions to the seniority level mentioned.',
   ].join('\n');
 
-  return [profileSection, resumeSection, guidance].join('\n\n');
+  return [instructions, '---', 'CONTEXT DATA:', profileSection, resumeSection].join('\n\n');
+};
+
+const buildFirstMessage = (
+  profile: NonNullable<VapiUserDataResponse['data']>
+): string => {
+  const company = profile.targetCompany || 'our company';
+  const role = profile.targetRole || 'the role';
+  return `Hello! I'm your interviewer from ${company}. I've reviewed your application for the ${role} position. To get us started, could you please introduce yourself and tell me a bit about your background?`;
 };
 
 export const getUserData = async (userId: string): Promise<VapiUserDataResponse> => {
@@ -86,7 +112,7 @@ export const getResumeData = async (userId: string): Promise<VapiResumeDataRespo
   };
 };
 
-export const getUserContext = async (userId: string): Promise<UserContextResponse> => {
+export const getUserContext = async (userId: string, targetId?: string): Promise<UserContextResponse> => {
   const [profileResult, resumeResult] = await Promise.all([
     getUserData(userId),
     getResumeData(userId),
@@ -95,16 +121,28 @@ export const getUserContext = async (userId: string): Promise<UserContextRespons
   if (profileResult.error || !profileResult.data) {
     return {
       error: 'User profile required to build context',
-      prompt: '',
+      systemPrompt: '',
+      firstMessage: '',
       data: null,
     };
   }
 
-  const prompt = buildContextPrompt(profileResult.data, resumeResult.data);
+  // Override with specific target if provided
+  if (targetId) {
+    const target = await targetService.getTargetById(targetId, userId);
+    if (target) {
+      profileResult.data.targetCompany = target.companyName;
+      profileResult.data.targetRole = target.role;
+    }
+  }
+
+  const systemPrompt = buildSystemPrompt(profileResult.data, resumeResult.data);
+  const firstMessage = buildFirstMessage(profileResult.data);
 
   return {
     error: null,
-    prompt,
+    systemPrompt,
+    firstMessage,
     data: {
       profile: profileResult.data,
       resume: resumeResult.data,

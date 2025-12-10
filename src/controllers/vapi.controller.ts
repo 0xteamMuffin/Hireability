@@ -134,13 +134,14 @@ export const getUserContextForUser = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
+    const targetId = req.query.targetId as string | undefined;
 
     if (!userId) {
       res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
     }
 
-    const result = await vapiService.getUserContext(userId);
+    const result = await vapiService.getUserContext(userId, targetId);
 
     if (result.error) {
       res.status(400).json({ success: false, error: result.error, data: null });
@@ -150,7 +151,8 @@ export const getUserContextForUser = async (
     res.json({
       success: true,
       data: {
-        prompt: result.prompt,
+        systemPrompt: result.systemPrompt,
+        firstMessage: result.firstMessage,
         profile: result.data?.profile || null,
         resume: result.data?.resume || null,
       },
