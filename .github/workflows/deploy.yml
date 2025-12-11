@@ -17,6 +17,9 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd ~/hireability
-            git -C Hireability-backend pull origin main
-            docker compose up -d --build backend
+            git -C Hireability-backend fetch origin main
+            git -C Hireability-backend reset --hard origin/main
+            cp Hireability-backend/docker-compose.yml docker-compose.yml
+            docker compose build --no-cache backend
+            docker compose up -d backend
             docker compose exec -T backend npx prisma migrate deploy
