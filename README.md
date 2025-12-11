@@ -16,6 +16,8 @@ HireAbility is an intelligent mock interview platform that leverages AI to provi
 
 ## 🏗️ Architecture
 
+<img src="docs/system-design.svg" alt="System Design" style="max-width: 100%; height: auto;" />
+
 ```
 Frontend (Next.js) → REST API → Backend (Express.js) → AI Agents (Gemini) → PostgreSQL
                     ↓
