@@ -22,4 +22,5 @@ jobs:
             cp Hireability-backend/docker-compose.yml docker-compose.yml
             docker compose build --no-cache backend
             docker compose up -d backend
+            docker compose restart nginx
             docker compose exec -T backend npx prisma migrate deploy
