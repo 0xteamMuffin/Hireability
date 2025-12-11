@@ -27,7 +27,9 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-validator": "^7.0.1",
+    "framer-motion": "^12.23.26",
     "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.560.0",
     "multer": "^2.0.2",
     "pdf-parse": "^2.4.5",
     "pg": "^8.13.1"
