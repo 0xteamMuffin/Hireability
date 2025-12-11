@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-package-lock.json
+#package-lock.json
 yarn.lock
 
 # Environment variables
@@ -31,5 +31,5 @@ yarn-error.log*
 Thumbs.db
 
 # Prisma
-prisma/migrations/
+#prisma/migrations/
 docs/
