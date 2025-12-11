@@ -8,11 +8,20 @@ HireAbility is an intelligent mock interview platform that leverages AI to provi
 
 ### Key Features
 
-- 🎤 **Real-time AI Interviews**: Live voice and video interviews powered by VAPI
-- 🤖 **Intelligent Analysis**: AI-powered evaluation using Google Gemini across 6 dimensions
-- 📊 **Detailed Analytics**: Comprehensive feedback with scores, strengths, weaknesses, and improvements
-- 📄 **Resume Review**: AI-powered resume analysis and optimization
-- 🎯 **Personalized Experience**: Customized interviews based on target role, company, and level
+* 🎤 **Real-time AI Interviews**
+  Live voice and video interviews powered by VAPI, dynamically asking resume-based, role-specific, and company-specific questions.
+
+* 🤖 **Intelligent Evaluation**
+  Google Gemini analyzes your responses, voice patterns (clarity, pace, confidence), and facial expressions to assess communication and professional demeanor.
+
+* 📊 **Comprehensive Analytics**
+  Parameter-wise scores, strengths, weaknesses, and targeted improvement insights.
+
+* 📄 **Resume-Aware System**
+  Upload your resume for tailored questioning and AI-driven resume optimization.
+
+* 🎯 **Personalized Experience**
+  Fully customized interview flow based on your chosen role, company, and experience level.
 
 ## 🏗️ Architecture
 
