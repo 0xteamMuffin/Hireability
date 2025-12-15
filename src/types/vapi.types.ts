@@ -91,3 +91,24 @@ export interface GeneratedQuestion {
   difficulty: 'easy' | 'medium' | 'hard';
   context?: string;
 }
+
+export interface SaveCallMetadataRequest {
+  interviewId: string;
+  callId: string;
+}
+
+export interface PauseDetail {
+  fromRole: string;
+  toRole: string;
+  gapSeconds: number;
+  bucket: 'micro' | 'short' | 'long' | 'very_long';
+}
+
+export interface PauseMetrics {
+  pauses: PauseDetail[];
+  bucketCounts: Record<'micro' | 'short' | 'long' | 'very_long', number>;
+  longest: number;
+  average: number;
+  totalSilence: number;
+  utteranceCount: number;
+}

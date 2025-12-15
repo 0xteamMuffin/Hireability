@@ -1,3 +1,4 @@
+import { prisma } from '../utils/prisma.util';
 import * as profileService from './profile.service';
 import * as documentService from './document.service';
 import * as targetService from './target.service';
@@ -5,6 +6,8 @@ import {
   GetQuestionsArgs,
   GeneratedQuestion,
   QuestionCategory,
+  SaveCallMetadataRequest,
+  PauseMetrics,
   UserContextResponse,
   VapiResumeDataResponse,
   VapiUserDataResponse,
@@ -216,6 +219,201 @@ export const generateReport = async (interviewId: string) => {
     totalScore: 85,
     summary: "Strong technical skills, good communication.",
     improvementPlan: ["Practice system design", "Review dynamic programming"]
+  };
+};
+
+type Utterance = {
+  role: string;
+  start: number;
+  end: number;
+  text?: string;
+};
+
+const computePauseMetrics = (utterances: Utterance[]): PauseMetrics => {
+  if (!utterances.length) {
+    return {
+      pauses: [],
+      bucketCounts: { micro: 0, short: 0, long: 0, very_long: 0 },
+      longest: 0,
+      average: 0,
+      totalSilence: 0,
+      utteranceCount: 0,
+    };
+  }
+
+  const sorted = [...utterances].sort((a, b) => a.start - b.start);
+  const pauses: PauseMetrics['pauses'] = [];
+  const bucketCounts = { micro: 0, short: 0, long: 0, very_long: 0 };
+
+  for (let i = 0; i < sorted.length - 1; i += 1) {
+    const gap = sorted[i + 1].start - sorted[i].end;
+    if (gap < 0) continue;
+    let bucket: PauseMetrics['pauses'][number]['bucket'] = 'very_long';
+    if (gap < 1.5) bucket = 'micro';
+    else if (gap < 3) bucket = 'short';
+    else if (gap < 6) bucket = 'long';
+    bucketCounts[bucket] += 1;
+    pauses.push({
+      fromRole: sorted[i].role,
+      toRole: sorted[i + 1].role,
+      gapSeconds: parseFloat(gap.toFixed(2)),
+      bucket,
+    });
+  }
+
+  const longest = pauses.reduce((acc, p) => Math.max(acc, p.gapSeconds), 0);
+  const totalSilence = pauses.reduce((acc, p) => acc + p.gapSeconds, 0);
+  const average = pauses.length ? parseFloat((totalSilence / pauses.length).toFixed(2)) : 0;
+
+  return {
+    pauses,
+    bucketCounts,
+    longest,
+    average,
+    totalSilence: parseFloat(totalSilence.toFixed(2)),
+    utteranceCount: utterances.length,
+  };
+};
+
+const parseUtterances = (call: any): Utterance[] => {
+  const messages = Array.isArray(call?.messages) ? call.messages : [];
+  const startedAtMs = call?.startedAt ? new Date(call.startedAt).getTime() : null;
+
+  return messages
+    .map((m: any) => {
+      const role = m.role || m.speaker || 'unknown';
+      const start =
+        typeof m.secondsFromStart === 'number'
+          ? m.secondsFromStart
+          : typeof m.time === 'number' && startedAtMs
+          ? (m.time - startedAtMs) / 1000
+          : null;
+      const durationSeconds =
+        typeof m.duration === 'number'
+          ? m.duration > 120 ? m.duration / 1000 : m.duration // heuristic: Vapi duration appears in ms
+          : typeof m.endTime === 'number' && typeof m.time === 'number'
+          ? (m.endTime - m.time) / 1000
+          : 0;
+      const end = start != null ? start + (durationSeconds || 0) : null;
+      if (start == null || end == null) return null;
+      return {
+        role,
+        start,
+        end,
+        text: m.message || m.content || m.text,
+      } as Utterance;
+    })
+    .filter(Boolean) as Utterance[];
+};
+
+export const saveCallMetadata = async (userId: string, payload: SaveCallMetadataRequest) => {
+  const db = prisma as any;
+
+  const interview = await db.interview.findFirst({
+    where: { id: payload.interviewId, userId },
+  });
+
+  if (!interview) {
+    throw new Error('Interview not found or does not belong to user');
+  }
+
+  const apiKey = process.env.VAPI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Missing VAPI_API_KEY environment variable');
+  }
+
+  const resp = await fetch(`https://api.vapi.ai/call/${payload.callId}`, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch call details (status ${resp.status})`);
+  }
+
+  const callData = await resp.json();
+
+  const callStartedAt = callData?.startedAt ? new Date(callData.startedAt) : interview.startedAt ?? null;
+  const callEndedAt = callData?.endedAt ? new Date(callData.endedAt) : null;
+  const durationSeconds =
+    callStartedAt && callEndedAt ? Math.max(0, Math.floor((callEndedAt.getTime() - callStartedAt.getTime()) / 1000)) : null;
+
+  const utterances = parseUtterances(callData);
+  const pauseMetrics = computePauseMetrics(utterances);
+
+  // Update interview with call linkage and timing
+  await db.interview.update({
+    where: { id: payload.interviewId },
+    data: {
+      callId: payload.callId,
+      startedAt: callStartedAt ?? undefined,
+      endedAt: callEndedAt ?? undefined,
+      durationSeconds: durationSeconds ?? undefined,
+    },
+  });
+
+  // Avoid duplicating the same call transcript record
+  const existing = await db.interviewTranscript.findFirst({
+    where: { interviewId: payload.interviewId, callId: payload.callId },
+  });
+
+  if (!existing) {
+    await db.interviewTranscript.create({
+      data: {
+        userId,
+        interviewId: payload.interviewId,
+        assistantId: callData?.assistantId || interview.assistantId || null,
+        callId: payload.callId,
+        startedAt: callStartedAt,
+        endedAt: callEndedAt,
+        durationSeconds: durationSeconds ?? null,
+        transcript: {
+          type: 'vapi_call',
+          callId: callData?.id || payload.callId,
+          status: callData?.status,
+          endedReason: callData?.endedReason,
+          transcriptText: callData?.transcript,
+          recordingUrl: callData?.recordingUrl,
+          stereoRecordingUrl: callData?.stereoRecordingUrl,
+          logUrl: callData?.logUrl,
+          messages: callData?.messages || [],
+          pauseMetrics,
+          utterances,
+        },
+      },
+    });
+  } else {
+    await db.interviewTranscript.update({
+      where: { id: existing.id },
+      data: {
+        assistantId: callData?.assistantId || interview.assistantId || null,
+        startedAt: callStartedAt,
+        endedAt: callEndedAt,
+        durationSeconds: durationSeconds ?? null,
+        transcript: {
+          ...(existing.transcript as any),
+          recordingUrl: callData?.recordingUrl,
+          stereoRecordingUrl: callData?.stereoRecordingUrl,
+          logUrl: callData?.logUrl,
+          pauseMetrics,
+          utterances,
+          status: callData?.status,
+          endedReason: callData?.endedReason,
+          transcriptText: callData?.transcript,
+        },
+      },
+    });
+  }
+
+  return {
+    pauseMetrics,
+    callId: callData?.id || payload.callId,
+    startedAt: callStartedAt?.toISOString() || null,
+    endedAt: callEndedAt?.toISOString() || null,
+    recordingUrl: callData?.recordingUrl || null,
+    stereoRecordingUrl: callData?.stereoRecordingUrl || null,
+    transcriptText: callData?.transcript || null,
   };
 };
 

@@ -4,6 +4,7 @@ import {
   VapiToolCallRequest,
   VapiToolCallResponse,
   GetQuestionsArgs,
+  SaveCallMetadataRequest,
 } from '../types/vapi.types';
 import '../types/auth.types';
 
@@ -211,6 +212,27 @@ export const generateReport = async (req: Request, res: Response, next: NextFunc
     
     const result = await vapiService.generateReport(args?.interviewId || 'unknown');
     res.json(buildResponse(toolCallId, result));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const saveCallMetadata = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const body = req.body as SaveCallMetadataRequest;
+    if (!body.interviewId || !body.callId) {
+      res.status(400).json({ success: false, message: 'interviewId and callId are required' });
+      return;
+    }
+
+    const result = await vapiService.saveCallMetadata(userId, body);
+    res.json({ success: true, data: result });
   } catch (error) {
     next(error);
   }

@@ -13,5 +13,6 @@ router.post('/provideHint', vapiController.provideHint);
 router.post('/endRound', vapiController.endRound);
 router.post('/generateReport', vapiController.generateReport);
 router.get('/context', authMiddleware, vapiController.getUserContextForUser);
+router.post('/calls', authMiddleware, vapiController.saveCallMetadata);
 
 export default router;
