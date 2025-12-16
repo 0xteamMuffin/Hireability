@@ -370,6 +370,22 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
     where: { interviewId: payload.interviewId, callId: payload.callId },
   });
 
+  // Prepare transcript data with averageExpressions
+  const transcriptData = {
+    type: 'vapi_call',
+    callId: callData?.id || payload.callId,
+    status: callData?.status,
+    endedReason: callData?.endedReason,
+    transcriptText: callData?.transcript,
+    recordingUrl: callData?.recordingUrl,
+    stereoRecordingUrl: callData?.stereoRecordingUrl,
+    logUrl: callData?.logUrl,
+    messages: callData?.messages || [],
+    pauseMetrics,
+    utterances,
+    ...(payload.averageExpressions && { averageExpressions: payload.averageExpressions }),
+  };
+
   if (!existing) {
     await db.interviewTranscript.create({
       data: {
@@ -380,19 +396,7 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
         startedAt: callStartedAt,
         endedAt: callEndedAt,
         durationSeconds: durationSeconds ?? null,
-        transcript: {
-          type: 'vapi_call',
-          callId: callData?.id || payload.callId,
-          status: callData?.status,
-          endedReason: callData?.endedReason,
-          transcriptText: callData?.transcript,
-          recordingUrl: callData?.recordingUrl,
-          stereoRecordingUrl: callData?.stereoRecordingUrl,
-          logUrl: callData?.logUrl,
-          messages: callData?.messages || [],
-          pauseMetrics,
-          utterances,
-        },
+        transcript: transcriptData,
       },
     });
   } else {
@@ -413,6 +417,7 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
           status: callData?.status,
           endedReason: callData?.endedReason,
           transcriptText: callData?.transcript,
+          ...(payload.averageExpressions && { averageExpressions: payload.averageExpressions }),
         },
       },
     });
@@ -426,7 +431,7 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
     recordingUrl: callData?.recordingUrl || null,
     stereoRecordingUrl: callData?.stereoRecordingUrl || null,
     transcriptText: callData?.transcript || null,
+    averageExpressions: payload.averageExpressions || null,
   };
 };
-
 

@@ -95,6 +95,7 @@ export interface GeneratedQuestion {
 export interface SaveCallMetadataRequest {
   interviewId: string;
   callId: string;
+  averageExpressions?: Record<string, number>;
 }
 
 export interface PauseDetail {
