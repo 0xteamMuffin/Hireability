@@ -332,7 +332,19 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
     throw new Error(`Failed to fetch call details (status ${resp.status})`);
   }
 
-  const callData = await resp.json();
+  const callData = await resp.json() as {
+    id?: string;
+    assistantId?: string;
+    status?: string;
+    endedReason?: string;
+    transcript?: string;
+    recordingUrl?: string;
+    stereoRecordingUrl?: string;
+    logUrl?: string;
+    messages?: any[];
+    startedAt?: string;
+    endedAt?: string;
+  };
 
   const callStartedAt = callData?.startedAt ? new Date(callData.startedAt) : interview.startedAt ?? null;
   const callEndedAt = callData?.endedAt ? new Date(callData.endedAt) : null;
