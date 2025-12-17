@@ -453,6 +453,17 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
     });
   }
 
+  // Fire-and-forget: trigger analysis automatically after call metadata is saved
+  // This runs async in background - don't await it
+  const { generateAnalysis } = await import('./interview.service');
+  generateAnalysis(userId, payload.interviewId)
+    .then(() => {
+      console.log(`[saveCallMetadata] Auto-analysis completed for interview ${payload.interviewId}`);
+    })
+    .catch((err) => {
+      console.error(`[saveCallMetadata] Auto-analysis failed for interview ${payload.interviewId}:`, err);
+    });
+
   return {
     pauseMetrics,
     callId: callData?.id || payload.callId,
