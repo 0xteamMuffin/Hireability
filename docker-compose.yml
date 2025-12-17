@@ -46,13 +46,16 @@ services:
       context: ./Hireability-frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: https://hireability.rkr.cx
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_VAPI_ASSISTANT_ID: ${NEXT_PUBLIC_VAPI_ASSISTANT_ID}
         NEXT_PUBLIC_VAPI_PUBLIC_KEY: ${NEXT_PUBLIC_VAPI_PUBLIC_KEY}
+        NEXT_PUBLIC_GOOGLE_API_KEY: ${NEXT_PUBLIC_GOOGLE_API_KEY}
     container_name: hireability-frontend
     restart: unless-stopped
     depends_on:
       - backend
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
     networks:
