@@ -2,7 +2,7 @@ import genai, { geminiConfig } from "../../utils/gemini.util";
 import dotenv from "dotenv";
 dotenv.config();
 
-const MODEL = process.env.MODEL_NAME || "gemini-1.5-flash";
+const MODEL = process.env.MODEL_NAME || "gemini-flash-latest";
 
 export class ResumeReviewGenerator {
   async generate(resumeData: any): Promise<string> {

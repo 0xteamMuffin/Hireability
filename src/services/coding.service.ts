@@ -204,7 +204,7 @@ Respond ONLY with the JSON object, no markdown.
 
   try {
     const result = await genai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: process.env.MODEL_NAME || "gemini-flash-latest",
       contents: prompt,
       config: geminiConfig,
     });
@@ -260,7 +260,7 @@ Be encouraging and constructive. Do NOT provide the solution.
 
   try {
     const result = await genai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: process.env.MODEL_NAME || "gemini-flash-latest",
       contents: prompt,
       config: geminiConfig,
     });
