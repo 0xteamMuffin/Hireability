@@ -322,17 +322,8 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
     throw new Error('Missing VAPI_API_KEY environment variable');
   }
 
-  const resp = await fetch(`https://api.vapi.ai/call/${payload.callId}`, {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-  });
-
-  if (!resp.ok) {
-    throw new Error(`Failed to fetch call details (status ${resp.status})`);
-  }
-
-  const callData = await resp.json() as {
+  // Define the type for VAPI call data
+  type VapiCallData = {
     id?: string;
     assistantId?: string;
     status?: string;
@@ -346,8 +337,47 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
     endedAt?: string;
   };
 
-  const callStartedAt = callData?.startedAt ? new Date(callData.startedAt) : interview.startedAt ?? null;
-  const callEndedAt = callData?.endedAt ? new Date(callData.endedAt) : null;
+  // Retry logic for VAPI API call - call data may not be immediately available
+  let callData: VapiCallData | null = null;
+
+  const maxRetries = 3;
+  const retryDelay = 2000; // 2 seconds
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const resp = await fetch(`https://api.vapi.ai/call/${payload.callId}`, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
+
+      if (!resp.ok) {
+        console.warn(`[saveCallMetadata] VAPI API returned status ${resp.status} on attempt ${attempt}`);
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          continue;
+        }
+        throw new Error(`Failed to fetch call details (status ${resp.status})`);
+      }
+
+      callData = await resp.json() as VapiCallData;
+      break;
+    } catch (err) {
+      console.error(`[saveCallMetadata] Error fetching call data on attempt ${attempt}:`, err);
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  if (!callData) {
+    throw new Error('Failed to fetch call data after retries');
+  }
+
+  const callStartedAt = callData.startedAt ? new Date(callData.startedAt) : interview.startedAt ?? null;
+  const callEndedAt = callData.endedAt ? new Date(callData.endedAt) : null;
   const durationSeconds =
     callStartedAt && callEndedAt ? Math.max(0, Math.floor((callEndedAt.getTime() - callStartedAt.getTime()) / 1000)) : null;
 
