@@ -53,6 +53,8 @@ export const createInterview = async (userId: string, payload: StartInterviewReq
       callId: payload.callId || null,
       startedAt,
       contextPrompt: payload.contextPrompt || null,
+      sessionId: payload.sessionId || null,
+      roundType: payload.roundType || null,
     },
   });
 };
