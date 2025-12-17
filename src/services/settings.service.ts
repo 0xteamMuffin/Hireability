@@ -18,6 +18,7 @@ export const getUserDetails = async (
 
   if (!user) return null;
 
+  const s = user.settings as any;
   return {
     id: user.id,
     email: user.email,
@@ -28,15 +29,17 @@ export const getUserDetails = async (
     avatarUrl: user.avatarUrl,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
-    settings: user.settings
+    settings: s
       ? {
-          id: user.settings.id,
-          userId: user.settings.userId,
-          notifications: user.settings.notifications,
-          darkMode: user.settings.darkMode,
-          language: user.settings.language,
-          createdAt: user.settings.createdAt,
-          updatedAt: user.settings.updatedAt,
+          id: s.id,
+          userId: s.userId,
+          notifications: s.notifications,
+          darkMode: s.darkMode,
+          language: s.language,
+          multiRoundEnabled: s.multiRoundEnabled ?? true,
+          defaultRounds: s.defaultRounds ?? ['BEHAVIORAL', 'TECHNICAL'],
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
         }
       : null,
   };
@@ -57,6 +60,7 @@ export const updateUserDetails = async (
     include: { settings: true },
   });
 
+  const s = user.settings as any;
   return {
     id: user.id,
     email: user.email,
@@ -67,15 +71,17 @@ export const updateUserDetails = async (
     avatarUrl: user.avatarUrl,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
-    settings: user.settings
+    settings: s
       ? {
-          id: user.settings.id,
-          userId: user.settings.userId,
-          notifications: user.settings.notifications,
-          darkMode: user.settings.darkMode,
-          language: user.settings.language,
-          createdAt: user.settings.createdAt,
-          updatedAt: user.settings.updatedAt,
+          id: s.id,
+          userId: s.userId,
+          notifications: s.notifications,
+          darkMode: s.darkMode,
+          language: s.language,
+          multiRoundEnabled: s.multiRoundEnabled ?? true,
+          defaultRounds: s.defaultRounds ?? ['BEHAVIORAL', 'TECHNICAL'],
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
         }
       : null,
   };
@@ -117,14 +123,17 @@ export const getSettings = async (
 
   if (!settings) return null;
 
+  const s = settings as any;
   return {
-    id: settings.id,
-    userId: settings.userId,
-    notifications: settings.notifications,
-    darkMode: settings.darkMode,
-    language: settings.language,
-    createdAt: settings.createdAt,
-    updatedAt: settings.updatedAt,
+    id: s.id,
+    userId: s.userId,
+    notifications: s.notifications,
+    darkMode: s.darkMode,
+    language: s.language,
+    multiRoundEnabled: s.multiRoundEnabled ?? true,
+    defaultRounds: s.defaultRounds ?? ['BEHAVIORAL', 'TECHNICAL'],
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
   };
 };
 
@@ -139,22 +148,29 @@ export const upsertSettings = async (
       notifications: data.notifications ?? true,
       darkMode: data.darkMode ?? false,
       language: data.language ?? 'en',
-    },
+      multiRoundEnabled: data.multiRoundEnabled ?? true,
+      defaultRounds: data.defaultRounds ?? ['BEHAVIORAL', 'TECHNICAL'],
+    } as any,
     update: {
       notifications: data.notifications,
       darkMode: data.darkMode,
       language: data.language,
-    },
+      multiRoundEnabled: data.multiRoundEnabled,
+      defaultRounds: data.defaultRounds,
+    } as any,
   });
 
+  const s = settings as any;
   return {
-    id: settings.id,
-    userId: settings.userId,
-    notifications: settings.notifications,
-    darkMode: settings.darkMode,
-    language: settings.language,
-    createdAt: settings.createdAt,
-    updatedAt: settings.updatedAt,
+    id: s.id,
+    userId: s.userId,
+    notifications: s.notifications,
+    darkMode: s.darkMode,
+    language: s.language,
+    multiRoundEnabled: s.multiRoundEnabled ?? true,
+    defaultRounds: s.defaultRounds ?? ['BEHAVIORAL', 'TECHNICAL'],
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
   };
 };
 

@@ -14,6 +14,9 @@ export interface UpdateSettingsInput {
   notifications?: boolean;
   darkMode?: boolean;
   language?: string;
+  // Interview settings
+  multiRoundEnabled?: boolean;
+  defaultRounds?: string[];
 }
 
 export interface UserSettingsResponse {
@@ -22,6 +25,9 @@ export interface UserSettingsResponse {
   notifications: boolean;
   darkMode: boolean;
   language: string;
+  // Interview settings
+  multiRoundEnabled: boolean;
+  defaultRounds: string[];
   createdAt: Date;
   updatedAt: Date;
 }

@@ -114,9 +114,13 @@ model UserSettings {
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  notifications Boolean @default(true)
-  darkMode      Boolean @default(false)
-  language      String  @default("en")
+  notifications    Boolean @default(true)
+  darkMode         Boolean @default(false)
+  language         String  @default("en")
+  
+  // Interview Settings
+  multiRoundEnabled Boolean @default(true)  // Enable/disable multi-round prerequisite system
+  defaultRounds     String[] @default(["BEHAVIORAL", "TECHNICAL"]) // Default rounds for new interviews
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -151,12 +155,103 @@ model Interview {
   durationSeconds Int?
   contextPrompt   String?
   callId          String?
+  
+  // Round System
+  roundType       RoundType @default(BEHAVIORAL)
+  roundOrder      Int       @default(1)  // Order in the interview session
+  sessionId       String?   // Groups rounds belonging to the same interview session
+  status          InterviewStatus @default(NOT_STARTED)
+  
   createdAt       DateTime @default(now())
 
   transcripts     InterviewTranscript[]
   analysis        InterviewAnalysis?
 
   @@map("interviews")
+}
+
+// Interview Session to group multiple rounds
+model InterviewSession {
+  id              String   @id @default(cuid())
+  userId          String
+  targetId        String?  // Reference to target company
+  status          SessionStatus @default(IN_PROGRESS)
+  currentRound    Int      @default(1)
+  totalRounds     Int      @default(2)
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  rounds          InterviewRound[]
+  
+  @@map("interview_sessions")
+}
+
+model InterviewRound {
+  id              String   @id @default(cuid())
+  sessionId       String
+  session         InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  interviewId     String?  // Link to actual Interview when started
+  
+  roundType       RoundType
+  order           Int
+  status          InterviewStatus @default(NOT_STARTED)
+  isLocked        Boolean  @default(false)  // Prerequisites not met
+  
+  // Coding round specific
+  problemId       String?
+  codeSubmission  String?
+  codeLanguage    String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("interview_rounds")
+}
+
+// Coding problems for technical coding rounds
+model CodingProblem {
+  id              String   @id @default(cuid())
+  title           String
+  description     String
+  difficulty      Difficulty
+  category        String   // e.g., "arrays", "trees", "dynamic-programming"
+  starterCode     Json?    // { javascript: "...", python: "...", etc }
+  testCases       Json?    // Array of test cases
+  hints           String[]
+  solution        String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("coding_problems")
+}
+
+enum RoundType {
+  BEHAVIORAL
+  TECHNICAL
+  CODING
+  SYSTEM_DESIGN
+  HR
+}
+
+enum InterviewStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
 }
 
 model InterviewAnalysis {
