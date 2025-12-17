@@ -143,4 +143,29 @@ export const getStats = async (
   }
 };
 
+export const deleteInterview = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const interviewId = req.params.id;
+    if (!interviewId) {
+      res.status(400).json({ success: false, message: 'interviewId is required' });
+      return;
+    }
+
+    await interviewService.deleteInterview(userId, interviewId);
+    res.json({ success: true, message: 'Interview deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 

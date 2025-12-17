@@ -199,3 +199,23 @@ export const checkMultiRoundEnabled = async (
     next(error);
   }
 };
+
+export const deleteSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const { sessionId } = req.params;
+    await sessionService.deleteSession(userId, sessionId);
+    res.json({ success: true, message: 'Session deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};

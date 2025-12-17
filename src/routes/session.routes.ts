@@ -18,6 +18,7 @@ router.get('/', sessionController.getSessions);
 router.get('/active', sessionController.getActiveSession);
 router.get('/multi-round-enabled', sessionController.checkMultiRoundEnabled);
 router.get('/:sessionId', sessionController.getSession);
+router.delete('/:sessionId', sessionController.deleteSession);
 router.post('/:sessionId/abandon', sessionController.abandonSession);
 
 // Round management

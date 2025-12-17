@@ -475,5 +475,21 @@ export const generateAnalysis = async (userId: string, interviewId: string) => {
   });
 };
 
+export const deleteInterview = async (userId: string, interviewId: string): Promise<void> => {
+  const db = prisma as any;
+
+  const interview = await db.interview.findFirst({
+    where: { id: interviewId, userId },
+  });
+
+  if (!interview) {
+    throw new Error('Interview not found or does not belong to user');
+  }
+
+  await db.interview.delete({
+    where: { id: interviewId },
+  });
+};
+
 
 

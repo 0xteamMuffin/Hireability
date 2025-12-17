@@ -100,6 +100,40 @@ export const createSession = async (
 };
 
 /**
+ * Delete an interview session and all its rounds/interviews
+ */
+export const deleteSession = async (userId: string, sessionId: string): Promise<void> => {
+  const session = await db.interviewSession.findFirst({
+    where: { id: sessionId, userId },
+    include: { rounds: true },
+  });
+
+  if (!session) {
+    throw new Error('Session not found or does not belong to user');
+  }
+
+  // Get all interview IDs associated with this session's rounds
+  const interviewIds = session.rounds
+    .map((r: any) => r.interviewId)
+    .filter(Boolean);
+
+  // Delete interviews (this will cascade to analysis and transcripts)
+  if (interviewIds.length > 0) {
+    await db.interview.deleteMany({
+      where: {
+        id: { in: interviewIds },
+        userId,
+      },
+    });
+  }
+
+  // Delete the session (this will cascade to rounds)
+  await db.interviewSession.delete({
+    where: { id: sessionId },
+  });
+};
+
+/**
  * Get session by ID with all rounds
  */
 export const getSession = async (
