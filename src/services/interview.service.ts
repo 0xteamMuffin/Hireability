@@ -3,6 +3,7 @@ import { StartInterviewRequest, SaveAnalysisRequest, AnalysisResult } from '../t
 import genai, { geminiConfig } from '../utils/gemini.util';
 import { SaveTranscriptRequest } from '../types/transcript.types';
 import { FeedbackGeneratorAgent } from '../agents/generators/feedback.generator';
+import { PauseMetrics } from '../types/vapi.types';
 
 export const getInterviews = async (userId: string) => {
   const db = prisma as any; // cast until Prisma types are regenerated
@@ -109,7 +110,44 @@ type TranscriptEntry = SaveTranscriptRequest['transcript'][number];
 const buildAnalysisPrompt = (params: {
   transcript: TranscriptEntry[];
   contextPrompt?: string | null;
+  averageExpressions?: Record<string, number> | null;
+  pauseMetrics?: PauseMetrics | null;
 }) => {
+  let speechAnalysisSection = '';
+  
+  if (params.pauseMetrics) {
+    const pm = params.pauseMetrics;
+    speechAnalysisSection = `
+**Speech Analysis - Pause Metrics:**
+- Average pause duration: ${pm.average.toFixed(2)} seconds
+- Longest pause: ${pm.longest.toFixed(2)} seconds
+- Total silence time: ${pm.totalSilence.toFixed(2)} seconds
+- Utterance count: ${pm.utteranceCount}
+- Pause distribution:
+  * Micro pauses (<1.5s): ${pm.bucketCounts.micro}
+  * Short pauses (1.5-3s): ${pm.bucketCounts.short}
+  * Long pauses (3-6s): ${pm.bucketCounts.long}
+  * Very long pauses (>6s): ${pm.bucketCounts.very_long}
+
+Use pause metrics to evaluate communication flow, confidence, and response time. Frequent very long pauses may indicate hesitation or difficulty formulating answers. Consider this when evaluating Communication and Professional dimensions.`;
+  }
+
+  let expressionSection = '';
+  if (params.averageExpressions) {
+    const exp = params.averageExpressions;
+    expressionSection = `
+**Facial Expression Analysis:**
+- Happy: ${(exp.happy || 0).toFixed(2)}
+- Neutral: ${(exp.neutral || 0).toFixed(2)}
+- Sad: ${(exp.sad || 0).toFixed(2)}
+- Angry: ${(exp.angry || 0).toFixed(2)}
+- Fearful: ${(exp.fearful || 0).toFixed(2)}
+- Surprised: ${(exp.surprised || 0).toFixed(2)}
+- Disgusted: ${(exp.disgusted || 0).toFixed(2)}
+
+Use average expressions to assess professional demeanor and emotional state. Higher happy/neutral scores indicate positive engagement and confidence. Lower scores in negative emotions (sad, angry, fearful) are positive indicators. Consider these when evaluating the Professional dimension and overall communication effectiveness.`;
+  }
+
   return `
 You are an interview evaluator. Given the transcript and (optional) context, produce JSON with scores (0-10) and short notes for each rubric, plus an overall summary. Use the following weights to compute overall_score:
 - Problem-solving: 20%
@@ -118,6 +156,10 @@ You are an interview evaluator. Given the transcript and (optional) context, pro
 - Experience: 15%
 - Communication: 15%
 - Professional Demeanor: 10%
+
+${speechAnalysisSection}
+
+${expressionSection}
 
 Output JSON with this shape:
 {
@@ -177,14 +219,39 @@ export const analyzeInterview = async (userId: string, interviewId: string) => {
     throw new Error('Interview not found or does not belong to user');
   }
 
-  const transcript = interview.transcripts?.[0]?.transcript as TranscriptEntry[] | undefined;
+  const transcriptData = interview.transcripts?.[0]?.transcript as any;
+  if (!transcriptData) {
+    throw new Error('Transcript not found for interview');
+  }
+
+  // Extract transcript entries - handle different formats
+  let transcript: TranscriptEntry[] = [];
+  if (Array.isArray(transcriptData)) {
+    transcript = transcriptData;
+  } else if (transcriptData.messages && Array.isArray(transcriptData.messages)) {
+    transcript = transcriptData.messages;
+  } else if (typeof transcriptData === 'object') {
+    // Handle object with numeric keys like the example provided
+    const entries = Object.keys(transcriptData)
+      .filter(key => key !== 'status' && key !== 'utterances' && key !== 'pauseMetrics' && key !== 'averageExpressions')
+      .map(key => transcriptData[key])
+      .filter((entry: any) => entry && typeof entry === 'object' && entry.role && entry.text);
+    transcript = entries;
+  }
+
   if (!transcript || !transcript.length) {
     throw new Error('Transcript not found for interview');
   }
 
+  // Extract averageExpressions and pauseMetrics from transcript data
+  const averageExpressions = transcriptData.averageExpressions || null;
+  const pauseMetrics = transcriptData.pauseMetrics || null;
+
   const prompt = buildAnalysisPrompt({
     transcript,
     contextPrompt: interview.contextPrompt || undefined,
+    averageExpressions,
+    pauseMetrics,
   });
 
   const response = await genai.models.generateContent({
@@ -312,28 +379,56 @@ export const generateAnalysis = async (userId: string, interviewId: string) => {
     where: { userId },
   });
 
-  // 3. Combine transcripts
+  // 3. Combine transcripts and extract metrics
   let fullTranscriptText = '';
+  let averageExpressions: Record<string, number> | null = null;
+  let pauseMetrics: PauseMetrics | null = null;
+
   if (interview.transcripts && interview.transcripts.length > 0) {
      // Sort by created at
      const sorted = interview.transcripts.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
      
      for (const t of sorted) {
-        if (typeof t.transcript === 'string') {
-            fullTranscriptText += t.transcript + '\n';
-        } else if (Array.isArray(t.transcript)) {
+        const transcriptData = t.transcript as any;
+        
+        // Extract averageExpressions and pauseMetrics from first transcript that has them
+        if (!averageExpressions && transcriptData?.averageExpressions) {
+          averageExpressions = transcriptData.averageExpressions;
+        }
+        if (!pauseMetrics && transcriptData?.pauseMetrics) {
+          pauseMetrics = transcriptData.pauseMetrics;
+        }
+
+        if (typeof transcriptData === 'string') {
+            fullTranscriptText += transcriptData + '\n';
+        } else if (Array.isArray(transcriptData)) {
             // Vapi message format usually: { role: 'user' | 'assistant', message: string } or { role, content }
-            fullTranscriptText += t.transcript.map((m: any) => {
+            fullTranscriptText += transcriptData.map((m: any) => {
                 const role = m.role || 'Unknown';
                 const content = m.message || m.content || m.text || JSON.stringify(m);
                 return `${role}: ${content}`;
             }).join('\n') + '\n';
-        } else if (typeof t.transcript === 'object' && t.transcript !== null) {
-             // Try to extract message/content if it's a single object
-             const m = t.transcript as any;
-             const role = m.role || 'Unknown';
-             const content = m.message || m.content || m.text || JSON.stringify(m);
-             fullTranscriptText += `${role}: ${content}\n`;
+        } else if (typeof transcriptData === 'object' && transcriptData !== null) {
+             // Handle object with numeric keys or messages array
+             if (transcriptData.messages && Array.isArray(transcriptData.messages)) {
+               fullTranscriptText += transcriptData.messages.map((m: any) => {
+                 const role = m.role || 'Unknown';
+                 const content = m.message || m.content || m.text || JSON.stringify(m);
+                 return `${role}: ${content}`;
+               }).join('\n') + '\n';
+             } else {
+               // Handle object with numeric keys
+               const entries = Object.keys(transcriptData)
+                 .filter(key => key !== 'status' && key !== 'utterances' && key !== 'pauseMetrics' && key !== 'averageExpressions')
+                 .map(key => transcriptData[key])
+                 .filter((entry: any) => entry && typeof entry === 'object' && entry.role && entry.text)
+                 .map((m: any) => {
+                   const role = m.role || 'Unknown';
+                   const content = m.text || m.message || m.content || JSON.stringify(m);
+                   return `${role}: ${content}`;
+                 });
+               fullTranscriptText += entries.join('\n') + '\n';
+             }
         }
      }
   }
@@ -349,6 +444,8 @@ export const generateAnalysis = async (userId: string, interviewId: string) => {
     targetRole: userProfile?.targetRole,
     targetCompany: userProfile?.targetCompany,
     level: userProfile?.level,
+    averageExpressions,
+    pauseMetrics,
   });
 
   // 5. Save Analysis
