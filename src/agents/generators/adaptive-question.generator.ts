@@ -16,6 +16,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const MODEL = process.env.MODEL_NAME || 'gemini-2.0-flash';
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 2000;
 
 interface AdaptiveQuestionContext {
   // Interview state
@@ -51,44 +53,79 @@ interface AdaptiveQuestionContext {
 }
 
 export class AdaptiveQuestionGeneratorAgent {
+  private fallbackIndex: Map<RoundType, number> = new Map();
+
   /**
-   * Generate the next question based on interview state
+   * Sleep helper for retry delays
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Check if error is a rate limit error
+   */
+  private isRateLimitError(error: unknown): boolean {
+    if (error && typeof error === 'object') {
+      const err = error as { status?: number; message?: string };
+      return err.status === 429 || (err.message?.includes('429') ?? false) || (err.message?.includes('quota') ?? false);
+    }
+    return false;
+  }
+
+  /**
+   * Generate the next question based on interview state with retry logic
    */
   async generateNextQuestion(state: InterviewState): Promise<NextQuestionResponse> {
     const context = this.buildContext(state);
     const prompt = this.buildPrompt(context);
 
-    try {
-      const response = await genai.models.generateContent({
-        model: MODEL,
-        config: {
-          ...geminiConfig,
-          responseMimeType: 'application/json',
-        },
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: prompt }],
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const response = await genai.models.generateContent({
+          model: MODEL,
+          config: {
+            ...geminiConfig,
+            responseMimeType: 'application/json',
           },
-        ],
-      });
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: prompt }],
+            },
+          ],
+        });
 
-      const content = response.text || '{}';
-      const parsed = JSON.parse(content);
+        const content = response.text || '{}';
+        const parsed = JSON.parse(content);
 
-      return {
-        question: parsed.question || 'Can you tell me more about your experience?',
-        category: this.mapCategory(parsed.category) || this.selectNextCategory(context),
-        difficulty: this.mapDifficulty(parsed.difficulty) || context.suggestedDifficulty,
-        context: parsed.reasoning || undefined,
-        isFollowUp: parsed.isFollowUp || false,
-        topicsRemaining: context.topicsRemaining,
-        estimatedQuestionsLeft: this.estimateQuestionsRemaining(context),
-      };
-    } catch (error) {
-      console.error('[AdaptiveQuestion] Generation failed:', error);
-      return this.getFallbackQuestion(context);
+        return {
+          question: parsed.question || 'Can you tell me more about your experience?',
+          category: this.mapCategory(parsed.category) || this.selectNextCategory(context),
+          difficulty: this.mapDifficulty(parsed.difficulty) || context.suggestedDifficulty,
+          context: parsed.reasoning || undefined,
+          isFollowUp: parsed.isFollowUp || false,
+          topicsRemaining: context.topicsRemaining,
+          estimatedQuestionsLeft: this.estimateQuestionsRemaining(context),
+        };
+      } catch (error) {
+        lastError = error;
+        
+        if (this.isRateLimitError(error) && attempt < MAX_RETRIES - 1) {
+          const delay = BASE_DELAY_MS * Math.pow(2, attempt);
+          console.log(`[AdaptiveQuestion] Rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          await this.sleep(delay);
+          continue;
+        }
+        
+        break;
+      }
     }
+
+    console.error('[AdaptiveQuestion] Generation failed after retries:', lastError);
+    return this.getFallbackQuestion(context);
   }
 
   /**
@@ -410,16 +447,62 @@ Generate a follow-up question that:
   }
 
   private getFallbackQuestion(context: AdaptiveQuestionContext): NextQuestionResponse {
-    const fallbacks: Record<RoundType, string> = {
-      [RoundType.BEHAVIORAL]: 'Tell me about a challenging project you worked on recently.',
-      [RoundType.TECHNICAL]: 'Can you explain your approach to debugging a complex issue?',
-      [RoundType.CODING]: 'Walk me through how you would approach solving this problem.',
-      [RoundType.SYSTEM_DESIGN]: 'How would you design a system to handle this requirement?',
-      [RoundType.HR]: 'What are you looking for in your next role?',
+    // Expanded fallback questions with variety per round type
+    const fallbackPool: Record<RoundType, string[]> = {
+      [RoundType.BEHAVIORAL]: [
+        'Tell me about a challenging project you worked on recently.',
+        'Can you describe a time when you had to work under a tight deadline?',
+        'Tell me about a situation where you had to collaborate with a difficult team member.',
+        'Describe a time when you had to learn a new technology quickly.',
+        'Can you share an example of when you took initiative on a project?',
+        'Tell me about a time when you received constructive feedback and how you handled it.',
+        'Describe a situation where you had to make a decision with incomplete information.',
+        'Can you tell me about a time when you failed and what you learned from it?',
+      ],
+      [RoundType.TECHNICAL]: [
+        'Can you explain your approach to debugging a complex issue?',
+        'How do you ensure code quality in your projects?',
+        'What factors do you consider when choosing between different technologies?',
+        'Can you explain the difference between SQL and NoSQL databases and when to use each?',
+        'How do you approach performance optimization in your applications?',
+        'What is your experience with version control and branching strategies?',
+        'How do you handle error handling and logging in production systems?',
+        'Can you explain the concept of API design best practices?',
+      ],
+      [RoundType.CODING]: [
+        'Walk me through how you would approach solving this problem.',
+        'Can you explain your thought process when breaking down a coding problem?',
+        'How do you handle edge cases when writing code?',
+        'What is your approach to testing your code?',
+      ],
+      [RoundType.SYSTEM_DESIGN]: [
+        'How would you design a system to handle this requirement?',
+        'What factors do you consider when designing for scalability?',
+        'How would you approach designing a caching strategy?',
+        'Can you explain how you would handle data consistency in a distributed system?',
+        'What trade-offs would you consider when choosing between different architectural patterns?',
+      ],
+      [RoundType.HR]: [
+        'What are you looking for in your next role?',
+        'Where do you see yourself in five years?',
+        'What motivates you in your work?',
+        'How do you handle work-life balance?',
+        'What type of work environment do you thrive in?',
+        'Why are you interested in this position?',
+      ],
     };
 
+    const pool = fallbackPool[context.roundType] || fallbackPool[RoundType.BEHAVIORAL];
+    
+    // Rotate through fallback questions to avoid repetition
+    const currentIndex = this.fallbackIndex.get(context.roundType) || 0;
+    const question = pool[currentIndex % pool.length];
+    this.fallbackIndex.set(context.roundType, currentIndex + 1);
+
+    console.log(`[AdaptiveQuestion] Using fallback question ${currentIndex + 1} for ${context.roundType}`);
+
     return {
-      question: fallbacks[context.roundType] || fallbacks[RoundType.BEHAVIORAL],
+      question,
       category: this.selectNextCategory(context),
       difficulty: context.suggestedDifficulty,
       isFollowUp: false,

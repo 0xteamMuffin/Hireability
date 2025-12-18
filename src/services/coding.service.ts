@@ -286,7 +286,7 @@ Example:
 Input: nums = [2,7,11,15], target = 9
 Output: [0,1]
 Explanation: Because nums[0] + nums[1] == 9, we return [0, 1].`,
-      difficulty: 'EASY',
+      difficulty: Difficulty.EASY,
       category: 'arrays',
       starterCode: {
         javascript: `function twoSum(nums, target) {\n  // Your code here\n}`,
@@ -316,7 +316,7 @@ Output: true
 
 Input: s = "(]"
 Output: false`,
-      difficulty: 'EASY',
+      difficulty: Difficulty.EASY,
       category: 'stacks',
       starterCode: {
         javascript: `function isValid(s) {\n  // Your code here\n}`,
@@ -340,7 +340,7 @@ Output: false`,
 Example:
 Input: head = [1,2,3,4,5]
 Output: [5,4,3,2,1]`,
-      difficulty: 'MEDIUM',
+      difficulty: Difficulty.MEDIUM,
       category: 'linked-lists',
       starterCode: {
         javascript: `function reverseList(head) {\n  // Your code here\n}`,

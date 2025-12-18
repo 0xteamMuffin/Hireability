@@ -14,6 +14,9 @@ router.get('/problems', codingController.getAllProblems);
 router.get('/problems/random', codingController.getProblem);
 router.get('/problems/:problemId', codingController.getProblemById);
 
+// Seed endpoint (public for development - should be protected in production)
+router.post('/seed', codingController.seedProblems);
+
 // Authenticated routes
 router.use(authMiddleware);
 
@@ -24,8 +27,5 @@ router.post('/hint', codingController.getHint);
 
 // Round-specific
 router.post('/round/:roundId/assign', codingController.assignProblem);
-
-// Admin/seeding
-router.post('/seed', codingController.seedProblems);
 
 export default router;

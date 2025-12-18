@@ -297,7 +297,10 @@ export interface PresentCodingProblemArgs {
 export const presentCodingProblem = async (
   args: PresentCodingProblemArgs
 ): Promise<{ problem: CodingState | null; speechDescription: string; error?: string }> => {
+  console.log('[presentCodingProblem] Args:', args);
+  
   const state = interviewStateService.getInterviewState(args.interviewId);
+  console.log('[presentCodingProblem] Interview state exists:', !!state);
   
   if (!state) {
     return {
@@ -309,6 +312,8 @@ export const presentCodingProblem = async (
 
   // Fetch problem from database
   let problem;
+  console.log('[presentCodingProblem] Looking for problem, difficulty:', args.difficulty || state.performance.suggestedDifficulty);
+  
   if (args.problemId) {
     problem = await db.codingProblem.findUnique({ where: { id: args.problemId } });
   } else {
@@ -318,7 +323,17 @@ export const presentCodingProblem = async (
       where: { difficulty },
       orderBy: { createdAt: 'desc' },
     });
+    
+    // Fallback: try to get any problem if none found for specific difficulty
+    if (!problem) {
+      console.log('[presentCodingProblem] No problem for difficulty, trying fallback...');
+      problem = await db.codingProblem.findFirst({
+        orderBy: { createdAt: 'desc' },
+      });
+    }
   }
+
+  console.log('[presentCodingProblem] Problem found:', !!problem, problem?.title);
 
   if (!problem) {
     return {
@@ -330,7 +345,8 @@ export const presentCodingProblem = async (
 
   // Initialize coding state
   const language = args.language || 'javascript';
-  const starterCode = problem.starterCode?.[language] || '// Write your solution here';
+  const starterCodeJson = problem.starterCode as Record<string, string> | null;
+  const starterCode = starterCodeJson?.[language] || starterCodeJson?.['javascript'] || '// Write your solution here';
   
   const codingState = interviewStateService.initializeCodingState(args.interviewId, {
     id: problem.id,

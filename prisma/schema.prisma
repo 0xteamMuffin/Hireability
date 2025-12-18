@@ -213,7 +213,7 @@ model InterviewRound {
 // Coding problems for technical coding rounds
 model CodingProblem {
   id              String   @id @default(cuid())
-  title           String
+  title           String   @unique
   description     String
   difficulty      Difficulty
   category        String   // e.g., "arrays", "trees", "dynamic-programming"
