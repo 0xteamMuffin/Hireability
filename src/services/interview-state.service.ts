@@ -573,12 +573,19 @@ export const persistState = async (interviewId: string): Promise<void> => {
   const state = stateStore.get(interviewId);
   if (!state) return;
 
+  // Use the interviewId parameter, not state.interviewId (which might be undefined in edge cases)
+  const dbInterviewId = interviewId || state.interviewId;
+  if (!dbInterviewId) {
+    console.warn(`[InterviewState] Cannot persist state - no valid interviewId`);
+    return;
+  }
+
   const db = prisma as any;
 
   try {
     // Store state as JSON in interview record
     await db.interview.update({
-      where: { id: state.interviewId },
+      where: { id: dbInterviewId },
       data: {
         // Store interview state in a JSON column (may need to add this to schema)
         contextPrompt: JSON.stringify({
@@ -594,9 +601,9 @@ export const persistState = async (interviewId: string): Promise<void> => {
     });
 
     state.persistedAt = new Date();
-    console.log(`[InterviewState] Persisted state for interview ${interviewId}`);
+    console.log(`[InterviewState] Persisted state for interview ${dbInterviewId}`);
   } catch (error) {
-    console.error(`[InterviewState] Failed to persist state for interview ${interviewId}:`, error);
+    console.error(`[InterviewState] Failed to persist state for interview ${dbInterviewId}:`, error);
   }
 };
 

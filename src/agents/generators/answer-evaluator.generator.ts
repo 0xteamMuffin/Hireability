@@ -14,6 +14,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const MODEL = process.env.MODEL_NAME || 'gemini-2.0-flash';
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 2000;
 
 interface EvaluationContext {
   // Question info
@@ -42,42 +44,74 @@ interface EvaluationContext {
 
 export class AnswerEvaluatorAgent {
   /**
-   * Evaluate a candidate's answer
+   * Sleep helper for retry delays
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Check if error is a rate limit error
+   */
+  private isRateLimitError(error: unknown): boolean {
+    if (error && typeof error === 'object') {
+      const err = error as { status?: number; message?: string };
+      return err.status === 429 || (err.message?.includes('429') ?? false) || (err.message?.includes('quota') ?? false);
+    }
+    return false;
+  }
+
+  /**
+   * Evaluate a candidate's answer with retry logic
    */
   async evaluate(context: EvaluationContext): Promise<AnswerEvaluationResponse> {
     const prompt = this.buildPrompt(context);
+    let lastError: unknown;
 
-    try {
-      const response = await genai.models.generateContent({
-        model: MODEL,
-        config: {
-          ...geminiConfig,
-          responseMimeType: 'application/json',
-        },
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: prompt }],
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const response = await genai.models.generateContent({
+          model: MODEL,
+          config: {
+            ...geminiConfig,
+            responseMimeType: 'application/json',
           },
-        ],
-      });
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: prompt }],
+            },
+          ],
+        });
 
-      const content = response.text || '{}';
-      const parsed = JSON.parse(content);
+        const content = response.text || '{}';
+        const parsed = JSON.parse(content);
 
-      return {
-        score: this.normalizeScore(parsed.score),
-        feedback: parsed.feedback || 'Good answer.',
-        strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
-        improvements: Array.isArray(parsed.improvements) ? parsed.improvements : [],
-        suggestFollowUp: parsed.suggestFollowUp ?? false,
-        followUpQuestion: parsed.followUpQuestion || undefined,
-        topicMastery: this.mapMastery(parsed.topicMastery),
-      };
-    } catch (error) {
-      console.error('[AnswerEvaluator] Evaluation failed:', error);
-      return this.getFallbackEvaluation(context);
+        return {
+          score: this.normalizeScore(parsed.score),
+          feedback: parsed.feedback || 'Good answer.',
+          strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
+          improvements: Array.isArray(parsed.improvements) ? parsed.improvements : [],
+          suggestFollowUp: parsed.suggestFollowUp ?? false,
+          followUpQuestion: parsed.followUpQuestion || undefined,
+          topicMastery: this.mapMastery(parsed.topicMastery),
+        };
+      } catch (error) {
+        lastError = error;
+        
+        if (this.isRateLimitError(error) && attempt < MAX_RETRIES - 1) {
+          const delay = BASE_DELAY_MS * Math.pow(2, attempt);
+          console.log(`[AnswerEvaluator] Rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          await this.sleep(delay);
+          continue;
+        }
+        
+        break;
+      }
     }
+
+    console.error('[AnswerEvaluator] Evaluation failed after retries:', lastError);
+    return this.getFallbackEvaluation(context);
   }
 
   /**
@@ -124,7 +158,7 @@ Respond with JSON:
   }
 
   /**
-   * Evaluate code submission specifically
+   * Evaluate code submission specifically with retry logic
    */
   async evaluateCode(context: {
     problemDescription: string;
@@ -136,42 +170,56 @@ Respond with JSON:
     experienceLevel?: string;
   }): Promise<AnswerEvaluationResponse> {
     const prompt = this.buildCodeEvaluationPrompt(context);
+    let lastError: unknown;
 
-    try {
-      const response = await genai.models.generateContent({
-        model: MODEL,
-        config: {
-          ...geminiConfig,
-          responseMimeType: 'application/json',
-        },
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      });
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const response = await genai.models.generateContent({
+          model: MODEL,
+          config: {
+            ...geminiConfig,
+            responseMimeType: 'application/json',
+          },
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        });
 
-      const parsed = JSON.parse(response.text || '{}');
+        const parsed = JSON.parse(response.text || '{}');
 
-      return {
-        score: this.normalizeScore(parsed.score),
-        feedback: parsed.feedback || 'Code reviewed.',
-        strengths: parsed.strengths || [],
-        improvements: parsed.improvements || [],
-        suggestFollowUp: parsed.suggestFollowUp ?? false,
-        followUpQuestion: parsed.followUpQuestion,
-        topicMastery: this.mapMastery(parsed.topicMastery),
-      };
-    } catch (error) {
-      console.error('[AnswerEvaluator] Code evaluation failed:', error);
-      
-      // Fallback based on test results
-      const passRate = context.testResults.passed / context.testResults.total;
-      return {
-        score: Math.round(passRate * 10),
-        feedback: `Passed ${context.testResults.passed}/${context.testResults.total} test cases.`,
-        strengths: passRate >= 0.5 ? ['Working solution'] : [],
-        improvements: passRate < 1 ? ['Some test cases failing'] : [],
-        suggestFollowUp: passRate >= 0.5 && passRate < 1,
-        topicMastery: passRate >= 0.8 ? 'proficient' : passRate >= 0.5 ? 'intermediate' : 'novice',
-      };
+        return {
+          score: this.normalizeScore(parsed.score),
+          feedback: parsed.feedback || 'Code reviewed.',
+          strengths: parsed.strengths || [],
+          improvements: parsed.improvements || [],
+          suggestFollowUp: parsed.suggestFollowUp ?? false,
+          followUpQuestion: parsed.followUpQuestion,
+          topicMastery: this.mapMastery(parsed.topicMastery),
+        };
+      } catch (error) {
+        lastError = error;
+        
+        if (this.isRateLimitError(error) && attempt < MAX_RETRIES - 1) {
+          const delay = BASE_DELAY_MS * Math.pow(2, attempt);
+          console.log(`[AnswerEvaluator] Code eval rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          await this.sleep(delay);
+          continue;
+        }
+        
+        break;
+      }
     }
+
+    console.error('[AnswerEvaluator] Code evaluation failed after retries:', lastError);
+    
+    // Fallback based on test results
+    const passRate = context.testResults.passed / context.testResults.total;
+    return {
+      score: Math.round(passRate * 10),
+      feedback: `Passed ${context.testResults.passed}/${context.testResults.total} test cases.`,
+      strengths: passRate >= 0.5 ? ['Working solution'] : [],
+      improvements: passRate < 1 ? ['Some test cases failing'] : [],
+      suggestFollowUp: passRate >= 0.5 && passRate < 1,
+      topicMastery: passRate >= 0.8 ? 'proficient' : passRate >= 0.5 ? 'intermediate' : 'novice',
+    };
   }
 
   private buildPrompt(context: EvaluationContext): string {
@@ -349,22 +397,55 @@ Expected: Expert-level insight, nuanced analysis, creative problem-solving`,
   }
 
   private getFallbackEvaluation(context: EvaluationContext): AnswerEvaluationResponse {
-    // Basic heuristic evaluation
+    // Basic heuristic evaluation with more context-aware feedback
     const answerLength = context.answer?.length || 0;
     let score = 5;
+    let feedback = 'Thank you for your answer.';
+    const strengths: string[] = [];
+    const improvements: string[] = [];
 
-    if (answerLength < 50) score = 3;
-    else if (answerLength < 150) score = 5;
-    else if (answerLength < 500) score = 6;
-    else score = 7;
+    // Score based on answer length
+    if (answerLength < 50) {
+      score = 4;
+      feedback = 'I appreciate your response. Could you elaborate a bit more on that?';
+      improvements.push('Consider providing more detail in your responses');
+    } else if (answerLength < 150) {
+      score = 5;
+      feedback = 'Thank you for that answer. Let me note that down.';
+    } else if (answerLength < 500) {
+      score = 6;
+      feedback = 'Good answer with solid detail. I\'ve noted that.';
+      strengths.push('Provided a detailed response');
+    } else {
+      score = 7;
+      feedback = 'Comprehensive answer. Thank you for the thorough explanation.';
+      strengths.push('Thorough and detailed response');
+    }
+
+    // Category-specific feedback additions
+    const categoryFeedback: Record<QuestionCategory, string> = {
+      [QuestionCategory.INTRODUCTION]: 'Good introduction.',
+      [QuestionCategory.EXPERIENCE]: 'Thanks for sharing that experience.',
+      [QuestionCategory.BEHAVIORAL]: 'That\'s a helpful example to understand your approach.',
+      [QuestionCategory.TECHNICAL_CONCEPT]: 'Thanks for explaining that concept.',
+      [QuestionCategory.PROBLEM_SOLVING]: 'Interesting approach to the problem.',
+      [QuestionCategory.SYSTEM_DESIGN]: 'Good thinking about the design considerations.',
+      [QuestionCategory.CODING]: 'Thanks for walking through your approach.',
+      [QuestionCategory.CULTURE_FIT]: 'Good to understand your values and preferences.',
+      [QuestionCategory.CLOSING]: 'Thanks for your thoughtful questions.',
+    };
+
+    if (categoryFeedback[context.category]) {
+      feedback = categoryFeedback[context.category] + ' ' + feedback;
+    }
 
     return {
       score,
-      feedback: 'Thank you for your answer. Let me note that down.',
-      strengths: answerLength > 100 ? ['Detailed response'] : [],
-      improvements: answerLength < 100 ? ['Could provide more detail'] : [],
+      feedback,
+      strengths,
+      improvements,
       suggestFollowUp: answerLength < 100,
-      topicMastery: 'intermediate',
+      topicMastery: score >= 7 ? 'proficient' : score >= 5 ? 'intermediate' : 'novice',
     };
   }
 }
