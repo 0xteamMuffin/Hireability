@@ -16,6 +16,7 @@ export interface UpdateSettingsInput {
   language?: string;
   // Interview settings
   multiRoundEnabled?: boolean;
+  prerequisitesEnabled?: boolean;
   defaultRounds?: string[];
 }
 
@@ -27,6 +28,7 @@ export interface UserSettingsResponse {
   language: string;
   // Interview settings
   multiRoundEnabled: boolean;
+  prerequisitesEnabled: boolean;
   defaultRounds: string[];
   createdAt: Date;
   updatedAt: Date;

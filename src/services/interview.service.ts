@@ -4,6 +4,7 @@ import genai, { geminiConfig } from '../utils/gemini.util';
 import { SaveTranscriptRequest } from '../types/transcript.types';
 import { FeedbackGeneratorAgent } from '../agents/generators/feedback.generator';
 import { PauseMetrics } from '../types/vapi.types';
+import { RoundType, ROUND_ANALYSIS_WEIGHTS } from '../types/round.types';
 
 export const getInterviews = async (userId: string) => {
   const db = prisma as any; // cast until Prisma types are regenerated
@@ -98,13 +99,24 @@ export const saveAnalysis = async (userId: string, payload: SaveAnalysisRequest)
 
 const ANALYSIS_MODEL = process.env.ANALYSIS_MODEL_NAME || process.env.MODEL_NAME || 'gemini-1.5-pro';
 
-const RUBRIC_WEIGHTS: Record<string, number> = {
+// Default weights (used when round type is unknown)
+const DEFAULT_RUBRIC_WEIGHTS: Record<string, number> = {
   problemSolving: 0.20,
   technical: 0.20,
   roleKnowledge: 0.20,
   experience: 0.15,
   communication: 0.15,
   professional: 0.10,
+};
+
+/**
+ * Get analysis weights based on round type
+ */
+const getWeightsForRound = (roundType?: RoundType | string | null): Record<string, number> => {
+  if (roundType && roundType in ROUND_ANALYSIS_WEIGHTS) {
+    return ROUND_ANALYSIS_WEIGHTS[roundType as RoundType];
+  }
+  return DEFAULT_RUBRIC_WEIGHTS;
 };
 
 type TranscriptEntry = SaveTranscriptRequest['transcript'][number];
@@ -190,13 +202,16 @@ const toDimension = (val: any): { score?: number | null; notes?: string | null; 
   };
 };
 
-const computeWeightedOverall = (scores: Record<string, number | null | undefined>): number | null => {
+const computeWeightedOverall = (
+  scores: Record<string, number | null | undefined>,
+  weights: Record<string, number> = DEFAULT_RUBRIC_WEIGHTS
+): number | null => {
   let total = 0;
   let weightSum = 0;
-  (Object.keys(RUBRIC_WEIGHTS) as Array<keyof typeof RUBRIC_WEIGHTS>).forEach((key) => {
+  Object.keys(weights).forEach((key) => {
     const score = scores[key];
     if (typeof score === 'number') {
-      const w = RUBRIC_WEIGHTS[key];
+      const w = weights[key];
       total += score * w;
       weightSum += w;
     }
@@ -289,8 +304,9 @@ export const analyzeInterview = async (userId: string, interviewId: string) => {
     modelVersion: ANALYSIS_MODEL,
   };
 
-  // If model did not provide overall score, compute weighted
+  // If model did not provide overall score, compute weighted based on round type
   if (!result.overall?.score) {
+    const roundWeights = getWeightsForRound(interview.roundType);
     const overallScore = computeWeightedOverall({
       problemSolving: result.problemSolving?.score,
       technical: result.technical?.score,
@@ -298,11 +314,11 @@ export const analyzeInterview = async (userId: string, interviewId: string) => {
       experience: result.experience?.score,
       communication: result.communication?.score,
       professional: result.professional?.score,
-    });
+    }, roundWeights);
     result.overall = {
       ...(result.overall || {}),
       score: overallScore,
-      notes: result.overall?.notes || 'Weighted average of rubric scores',
+      notes: result.overall?.notes || `Weighted average for ${interview.roundType || 'general'} round`,
     };
   }
 

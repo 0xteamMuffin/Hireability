@@ -30,9 +30,42 @@ export const isMultiRoundEnabled = async (userId: string): Promise<boolean> => {
 };
 
 /**
+ * Check if prerequisites are enabled (round locking)
+ */
+export const isPrerequisitesEnabled = async (userId: string): Promise<boolean> => {
+  const settings = await db.userSettings.findUnique({
+    where: { userId },
+  });
+  
+  return settings?.prerequisitesEnabled ?? true;
+};
+
+/**
+ * Level-based default rounds configuration
+ * Customized based on user's experience level from their profile
+ */
+const LEVEL_DEFAULT_ROUNDS: Record<string, RoundType[]> = {
+  // Entry level - focus on basics
+  'Intern': [RoundType.BEHAVIORAL, RoundType.TECHNICAL],
+  'Junior (SDE I)': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.CODING],
+  
+  // Mid level - add coding challenges
+  'Mid-Level (SDE II)': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.CODING],
+  
+  // Senior level - include system design
+  'Senior (SDE III)': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.SYSTEM_DESIGN, RoundType.CODING],
+  
+  // Staff+ - full interview loop
+  'Staff Engineer': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.SYSTEM_DESIGN, RoundType.CODING, RoundType.HR],
+  'Engineering Manager': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.SYSTEM_DESIGN, RoundType.HR],
+};
+
+/**
  * Get user's default rounds configuration
+ * Priority: 1) User settings, 2) Level-based defaults, 3) Fallback
  */
 export const getUserDefaultRounds = async (userId: string): Promise<RoundType[]> => {
+  // First check if user has custom settings
   const settings = await db.userSettings.findUnique({
     where: { userId },
   });
@@ -41,7 +74,17 @@ export const getUserDefaultRounds = async (userId: string): Promise<RoundType[]>
     return settings.defaultRounds as RoundType[];
   }
   
-  return [RoundType.BEHAVIORAL, RoundType.TECHNICAL];
+  // Get user's profile to determine level-based defaults
+  const profile = await db.userProfile.findUnique({
+    where: { userId },
+  });
+  
+  if (profile?.level && LEVEL_DEFAULT_ROUNDS[profile.level]) {
+    return LEVEL_DEFAULT_ROUNDS[profile.level];
+  }
+  
+  // Fallback default
+  return [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.CODING];
 };
 
 /**
@@ -52,10 +95,17 @@ export const createSession = async (
   payload: CreateSessionRequest
 ): Promise<SessionResponse> => {
   const multiRoundEnabled = await isMultiRoundEnabled(userId);
+  const prerequisitesEnabled = await isPrerequisitesEnabled(userId);
   
   // Get rounds to create
   let roundTypes: RoundType[];
   if (payload.rounds?.length) {
+    // Validate provided round types
+    const validRoundTypes = Object.values(RoundType);
+    const invalidRounds = payload.rounds.filter(r => !validRoundTypes.includes(r));
+    if (invalidRounds.length > 0) {
+      throw new Error(`Invalid round types: ${invalidRounds.join(', ')}. Valid types: ${validRoundTypes.join(', ')}`);
+    }
     roundTypes = payload.rounds;
   } else if (multiRoundEnabled) {
     roundTypes = await getUserDefaultRounds(userId);
@@ -75,12 +125,12 @@ export const createSession = async (
     },
   });
   
-  // Create rounds
+  // Create rounds - lock based on prerequisitesEnabled setting
   const roundsData = roundTypes.map((type, index) => {
     const order = index + 1;
     
-    // First round is always unlocked, others depend on prerequisites
-    const isLocked = order > 1;
+    // If prerequisites disabled, all rounds are unlocked; otherwise only first is unlocked
+    const isLocked = prerequisitesEnabled ? order > 1 : false;
     
     return {
       sessionId: session.id,
@@ -218,12 +268,14 @@ export const startRound = async (
     throw new Error('Round not found');
   }
   
-  if (round.isLocked) {
+  // Check prerequisites setting - only enforce locking if prerequisites enabled
+  const prerequisitesEnabled = await isPrerequisitesEnabled(userId);
+  if (prerequisitesEnabled && round.isLocked) {
     throw new Error('Round is locked. Complete previous rounds first.');
   }
   
-  if (round.status !== InterviewStatus.NOT_STARTED) {
-    throw new Error('Round has already been started or completed');
+  if (round.status !== InterviewStatus.NOT_STARTED && round.status !== InterviewStatus.IN_PROGRESS) {
+    throw new Error('Round has already been completed');
   }
   
   // Update round status

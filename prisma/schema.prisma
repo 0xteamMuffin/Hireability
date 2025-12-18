@@ -119,8 +119,9 @@ model UserSettings {
   language         String  @default("en")
   
   // Interview Settings
-  multiRoundEnabled Boolean @default(true)  // Enable/disable multi-round prerequisite system
-  defaultRounds     String[] @default(["BEHAVIORAL", "TECHNICAL"]) // Default rounds for new interviews
+  multiRoundEnabled   Boolean  @default(true)  // Enable multi-round sessions
+  prerequisitesEnabled Boolean @default(true)  // Enforce round ordering/locking
+  defaultRounds       String[] @default(["BEHAVIORAL", "TECHNICAL", "CODING"]) // Default rounds for new interviews
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
