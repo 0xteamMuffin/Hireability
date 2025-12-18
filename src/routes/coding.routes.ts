@@ -17,7 +17,8 @@ router.get('/problems/:problemId', codingController.getProblemById);
 // Authenticated routes
 router.use(authMiddleware);
 
-// Code submission and evaluation
+// Code execution and submission
+router.post('/run', codingController.runCode);
 router.post('/submit', codingController.submitCode);
 router.post('/hint', codingController.getHint);
 

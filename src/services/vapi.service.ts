@@ -13,6 +13,8 @@ import {
   VapiUserDataResponse,
 } from '../types/vapi.types';
 import { questionGeneratorAgent } from '../agents';
+import { buildAdaptiveSystemPrompt, buildFirstMessage as buildRoundFirstMessage } from '../utils/system-prompt.util';
+import { RoundType } from '../types/interview-state.types';
 
 const CONTEXT_CHAR_LIMIT = 3000;
 
@@ -115,7 +117,11 @@ export const getResumeData = async (userId: string): Promise<VapiResumeDataRespo
   };
 };
 
-export const getUserContext = async (userId: string, targetId?: string): Promise<UserContextResponse> => {
+export const getUserContext = async (
+  userId: string, 
+  targetId?: string,
+  roundType?: string
+): Promise<UserContextResponse> => {
   const [profileResult, resumeResult] = await Promise.all([
     getUserData(userId),
     getResumeData(userId),
@@ -139,8 +145,44 @@ export const getUserContext = async (userId: string, targetId?: string): Promise
     }
   }
 
-  const systemPrompt = buildSystemPrompt(profileResult.data, resumeResult.data);
-  const firstMessage = buildFirstMessage(profileResult.data);
+  // Build resume summary for context
+  let resumeSummary: string | undefined;
+  if (resumeResult.data?.parsedData) {
+    const parsed = resumeResult.data.parsedData as Record<string, unknown>;
+    resumeSummary = trimContext(JSON.stringify({
+      skills: parsed.skills,
+      experience: parsed.experience,
+      education: parsed.education,
+    }, null, 2));
+  }
+
+  // Use adaptive system prompt when roundType is specified, otherwise use generic
+  let systemPrompt: string;
+  let firstMessage: string;
+  
+  if (roundType && Object.values(RoundType).includes(roundType as RoundType)) {
+    // Generate a unique interviewId placeholder - the actual one will be set when interview starts
+    const interviewIdPlaceholder = '{{interviewId}}';
+    systemPrompt = buildAdaptiveSystemPrompt({
+      targetRole: profileResult.data.targetRole || undefined,
+      targetCompany: profileResult.data.targetCompany || undefined,
+      experienceLevel: profileResult.data.level || undefined,
+      resumeSummary,
+      roundType: roundType as RoundType,
+      interviewId: interviewIdPlaceholder,
+    });
+    
+    // Use round-specific first message
+    firstMessage = buildRoundFirstMessage({
+      targetRole: profileResult.data.targetRole || undefined,
+      targetCompany: profileResult.data.targetCompany || undefined,
+      roundType: roundType as RoundType,
+      interviewId: interviewIdPlaceholder,
+    });
+  } else {
+    systemPrompt = buildSystemPrompt(profileResult.data, resumeResult.data);
+    firstMessage = buildFirstMessage(profileResult.data);
+  }
 
   return {
     error: null,

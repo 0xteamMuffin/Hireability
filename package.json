@@ -32,7 +32,9 @@
     "lucide-react": "^0.560.0",
     "multer": "^2.0.2",
     "pdf-parse": "^2.4.5",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "socket.io": "^4.8.1",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -41,6 +43,7 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.19.27",
     "@types/pg": "^8.11.10",
+    "@types/uuid": "^10.0.0",
     "nodemon": "^3.1.0",
     "prisma": "^7.0.0",
     "ts-node": "^10.9.2",

@@ -5,6 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as codingService from '../services/coding.service';
+import * as pistonService from '../services/piston.service';
 import { Difficulty, SubmitCodeRequest } from '../types/round.types';
 
 export const getProblem = async (
@@ -172,6 +173,47 @@ export const seedProblems = async (
   try {
     await codingService.seedProblems();
     res.json({ success: true, message: 'Problems seeded successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Run code without evaluation (just execution)
+ */
+export const runCode = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const { code, language, stdin } = req.body;
+
+    if (!code || !language) {
+      res.status(400).json({
+        success: false,
+        message: 'code and language are required',
+      });
+      return;
+    }
+
+    const result = await pistonService.executeCode(code, language, stdin);
+    
+    res.json({
+      success: true,
+      data: {
+        success: result.success,
+        output: result.output,
+        error: result.error,
+        executionTimeMs: result.executionTimeMs,
+      },
+    });
   } catch (error) {
     next(error);
   }

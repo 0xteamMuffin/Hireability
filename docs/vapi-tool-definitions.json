@@ -1,0 +1,282 @@
+{
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "initializeInterview",
+        "description": "Initialize the interview state when the call starts. Call this FIRST before any other tools.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "interviewId": {
+              "type": "string",
+              "description": "The unique ID of the interview session"
+            },
+            "sessionId": {
+              "type": "string",
+              "description": "Optional session ID if part of a multi-round interview"
+            },
+            "roundType": {
+              "type": "string",
+              "enum": ["BEHAVIORAL", "TECHNICAL", "CODING", "SYSTEM_DESIGN", "HR"],
+              "description": "The type of interview round"
+            },
+            "targetId": {
+              "type": "string",
+              "description": "Optional target company ID"
+            }
+          },
+          "required": ["interviewId", "roundType"]
+        }
+      },
+      "server": {
+        "url": "{{SERVER_URL}}/api/vapi/interactive/initializeInterview"
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "getNextQuestion",
+        "description": "Get the next adaptive interview question based on the candidate's performance. Use this instead of making up questions.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "interviewId": {
+              "type": "string",
+              "description": "The interview ID"
+            },
+            "previousAnswer": {
+              "type": "string",
+              "description": "Optional: the candidate's previous answer if transitioning between questions"
+            }
+          },
+          "required": ["interviewId"]
+        }
+      },
+      "server": {
+        "url": "{{SERVER_URL}}/api/vapi/interactive/getNextQuestion"
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "evaluateAnswer",
+        "description": "Evaluate the candidate's answer to a question. Call this after EVERY candidate response to track their performance.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "interviewId": {
+              "type": "string",
+              "description": "The interview ID"
+            },
+            "answer": {
+              "type": "string",
+              "description": "The candidate's full answer to the current question"
+            },
+            "questionId": {
+              "type": "string",
+              "description": "Optional: specific question ID if not the current question"
+            }
+          },
+          "required": ["interviewId", "answer"]
+        }
+      },
+      "server": {
+        "url": "{{SERVER_URL}}/api/vapi/interactive/evaluateAnswer"
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "getInterviewState",
+        "description": "Get the current state of the interview including questions asked, scores, and topics covered.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "interviewId": {
+              "type": "string",
+              "description": "The interview ID"
+            }
+          },
+          "required": ["interviewId"]
+        }
+      },
+      "server": {
+        "url": "{{SERVER_URL}}/api/vapi/interactive/getInterviewState"
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "shouldWrapUp",
+        "description": "Check if it's time to wrap up the interview based on time and questions asked.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "interviewId": {
+              "type": "string",
+              "description": "The interview ID"
+            }
+          },
+          "required": ["interviewId"]
+        }
+      },
+      "server": {
+        "url": "{{SERVER_URL}}/api/vapi/interactive/shouldWrapUp"
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "presentCodingProblem",
+        "description": "Present a coding problem to the candidate. Use this in CODING rounds.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "interviewId": {
+              "type": "string",
+              "description": "The interview ID"
+            },
+            "problemId": {
+              "type": "string",
+              "description": "Optional: specific problem ID to present"
+            },
+            "difficulty": {
+              "type": "string",
+              "enum": ["EASY", "MEDIUM", "HARD"],
+              "description": "Optional: difficulty level if auto-selecting problem"
+            },
+            "language": {
+              "type": "string",
+              "description": "Preferred programming language (default: javascript)"
+            }
+          },
+          "required": ["interviewId"]
+        }
+      },
+      "server": {
+        "url": "{{SERVER_URL}}/api/vapi/interactive/presentCodingProblem"
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "checkCodeProgress",
+        "description": "Check the candidate's coding progress. Use this during CODING rounds to see how they're doing.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "interviewId": {
+              "type": "string",
+              "description": "The interview ID"
+            }
+          },
+          "required": ["interviewId"]
+        }
+      },
+      "server": {
+        "url": "{{SERVER_URL}}/api/vapi/interactive/checkCodeProgress"
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "executeCode",
+        "description": "Execute the candidate's code against test cases. Use this when the candidate is ready to test their solution.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "interviewId": {
+              "type": "string",
+              "description": "The interview ID"
+            },
+            "code": {
+              "type": "string",
+              "description": "The candidate's code to execute"
+            },
+            "language": {
+              "type": "string",
+              "description": "Programming language of the code"
+            }
+          },
+          "required": ["interviewId", "code", "language"]
+        }
+      },
+      "server": {
+        "url": "{{SERVER_URL}}/api/vapi/interactive/executeCode"
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "getCodingHint",
+        "description": "Get a hint for the current coding problem. Use this if the candidate is stuck.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "interviewId": {
+              "type": "string",
+              "description": "The interview ID"
+            }
+          },
+          "required": ["interviewId"]
+        }
+      },
+      "server": {
+        "url": "{{SERVER_URL}}/api/vapi/interactive/getCodingHint"
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "completeInterview",
+        "description": "Complete the interview and get a summary. Call this when ending the interview.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "interviewId": {
+              "type": "string",
+              "description": "The interview ID"
+            }
+          },
+          "required": ["interviewId"]
+        }
+      },
+      "server": {
+        "url": "{{SERVER_URL}}/api/vapi/interactive/completeInterview"
+      }
+    }
+  ],
+  "variableValues": {
+    "userId": "{{USER_ID}}",
+    "interviewId": "{{INTERVIEW_ID}}",
+    "roundType": "{{ROUND_TYPE}}",
+    "targetId": "{{TARGET_ID}}",
+    "sessionId": "{{SESSION_ID}}"
+  },
+  "notes": {
+    "setup": [
+      "1. Replace {{SERVER_URL}} with your backend URL (e.g., https://api.hireability.com)",
+      "2. When starting a call, pass these variableValues in assistantOverrides:",
+      "   - userId: The authenticated user's ID",
+      "   - interviewId: The interview record ID from your database",
+      "   - roundType: BEHAVIORAL | TECHNICAL | CODING | SYSTEM_DESIGN | HR",
+      "   - targetId: (optional) Target company ID",
+      "   - sessionId: (optional) Multi-round session ID"
+    ],
+    "toolFlow": [
+      "1. initializeInterview - Call FIRST to set up state",
+      "2. getNextQuestion - Get adaptive questions (don't make them up)",
+      "3. evaluateAnswer - Evaluate EVERY answer for scoring",
+      "4. shouldWrapUp - Check periodically if time to end",
+      "5. completeInterview - Call to finish and get summary"
+    ],
+    "codingRound": [
+      "For CODING rounds, use these additional tools:",
+      "- presentCodingProblem: Show the problem",
+      "- checkCodeProgress: Monitor their progress",
+      "- getCodingHint: Help if stuck",
+      "- executeCode: Run their solution"
+    ]
+  }
+}
