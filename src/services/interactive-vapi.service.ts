@@ -358,6 +358,29 @@ export const presentCodingProblem = async (
     testCases: Array.isArray(problem.testCases) ? problem.testCases.length : 0,
   }, language);
 
+  // Update the persistent round record if part of a session
+  if (state.sessionId) {
+    try {
+      // Find the current round for this session and type
+      // We update all matching rounds that are not completed to ensure consistency
+      await db.interviewRound.updateMany({
+        where: {
+          sessionId: state.sessionId,
+          roundType: state.roundType,
+          status: { not: 'COMPLETED' }
+        },
+        data: {
+          problemId: problem.id,
+          interviewId: args.interviewId,
+          status: 'IN_PROGRESS'
+        }
+      });
+      console.log('[presentCodingProblem] Updated interview round with problem:', problem.id);
+    } catch (err) {
+      console.error('[presentCodingProblem] Failed to update interview round:', err);
+    }
+  }
+
   // Update phase
   interviewStateService.setPhase(args.interviewId, InterviewPhase.CODING_SETUP);
 

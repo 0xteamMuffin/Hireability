@@ -47,14 +47,8 @@ router.post('/shouldWrapUp', interactiveVapiController.shouldWrapUp);
 
 // Present a coding problem to the candidate
 router.post('/presentCodingProblem', interactiveVapiController.presentCodingProblem);
-
-// Check candidate's code progress
 router.post('/checkCodeProgress', interactiveVapiController.checkCodeProgress);
-
-// Execute candidate's code against test cases
 router.post('/executeCode', interactiveVapiController.executeCode);
-
-// Get a hint for the coding problem
 router.post('/getCodingHint', interactiveVapiController.getCodingHint);
 
 export default router;

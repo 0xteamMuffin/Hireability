@@ -91,6 +91,7 @@ export const initializeInterview = async (
   try {
     const { toolCallId, args, isDirect } = getToolCallInfo(req);
     const userId = extractUserId(req);
+    const interviewId = extractInterviewId(req) || (args.interviewId as string | undefined);
 
     if (!userId) {
       if (isDirect) {
@@ -101,9 +102,18 @@ export const initializeInterview = async (
       return;
     }
 
+    if (!interviewId) {
+      if (isDirect) {
+        res.status(400).json({ success: false, error: 'interviewId is required' });
+      } else {
+        res.json(buildResponse(toolCallId, { error: 'interviewId not found in call metadata' }));
+      }
+      return;
+    }
+
     const result = await interactiveVapiService.initializeInterview({
       userId,
-      interviewId: args.interviewId as string,
+      interviewId,
       sessionId: args.sessionId as string | undefined,
       roundType: (args.roundType as RoundType) || RoundType.BEHAVIORAL,
       targetId: args.targetId as string | undefined,
