@@ -364,8 +364,9 @@ export const presentCodingProblem = async (
   // Generate speech-friendly description
   const speechDescription = generateProblemSpeech(problem);
 
-  // Emit via socket
+  // Emit via socket - send both the coding problem and state update
   emitCodingProblemAssigned(args.interviewId, codingState!);
+  socketService.emitStateUpdate(args.interviewId);
 
   return {
     problem: codingState,
@@ -382,7 +383,13 @@ export const checkCodeProgress = async (
 ): Promise<{
   hasCode: boolean;
   linesOfCode: number;
+  codeLength: number;
+  language: string;
   lastActivity: string;
+  hintsUsed: number;
+  hintsAvailable: number;
+  attempts: number;
+  isTyping: boolean;
   feedback: string;
 }> => {
   const state = interviewStateService.getInterviewState(interviewId);
@@ -391,7 +398,13 @@ export const checkCodeProgress = async (
     return {
       hasCode: false,
       linesOfCode: 0,
+      codeLength: 0,
+      language: 'unknown',
       lastActivity: 'unknown',
+      hintsUsed: 0,
+      hintsAvailable: 0,
+      attempts: 0,
+      isTyping: false,
       feedback: 'No coding session active.',
     };
   }
@@ -399,28 +412,50 @@ export const checkCodeProgress = async (
   const coding = state.codingState;
   const lines = coding.currentCode.split('\n').filter((l) => l.trim()).length;
   const timeSinceStart = Math.floor((Date.now() - coding.startedAt.getTime()) / 1000);
+  const isTyping = state.candidateSignals?.isTyping || false;
+  const lastCodeUpdate = state.candidateSignals?.lastCodeUpdate;
+  const secondsSinceLastUpdate = lastCodeUpdate 
+    ? Math.floor((Date.now() - new Date(lastCodeUpdate).getTime()) / 1000)
+    : timeSinceStart;
 
   let feedback = '';
-  if (lines < 5 && timeSinceStart > 120) {
-    feedback = 'I notice you haven\'t written much code yet. Would you like to talk through your approach first?';
+  if (isTyping || secondsSinceLastUpdate < 10) {
+    feedback = 'The candidate is actively typing code.';
+  } else if (lines < 5 && timeSinceStart > 120) {
+    feedback = 'The candidate hasn\'t written much code yet. Consider asking if they want to talk through their approach.';
+  } else if (lines > 20) {
+    feedback = 'The candidate has written substantial code. They may be close to a solution.';
   } else if (lines > 10) {
-    feedback = 'Looks like you\'re making progress. Let me know when you\'re ready to run the tests.';
+    feedback = 'The candidate is making progress on the code.';
+  } else if (coding.submissions.length > 0) {
+    const lastSubmission = coding.submissions[coding.submissions.length - 1];
+    const passed = lastSubmission.result.testResults?.filter(t => t.passed).length || 0;
+    const total = lastSubmission.result.testResults?.length || 0;
+    feedback = `Last submission: ${passed}/${total} tests passed.`;
   } else {
-    feedback = 'Take your time. Feel free to think out loud as you work through the problem.';
+    feedback = 'The candidate is working on the problem.';
   }
 
   return {
     hasCode: lines > 0,
     linesOfCode: lines,
-    lastActivity: `${timeSinceStart} seconds ago`,
+    codeLength: coding.currentCode.length,
+    language: coding.language,
+    lastActivity: secondsSinceLastUpdate < 60 
+      ? `${secondsSinceLastUpdate} seconds ago` 
+      : `${Math.floor(secondsSinceLastUpdate / 60)} minutes ago`,
+    hintsUsed: coding.hintsUsed,
+    hintsAvailable: coding.hintsAvailable?.length || 0,
+    attempts: coding.submissions.length,
+    isTyping,
     feedback,
   };
 };
 
 export interface ExecuteCodeArgs {
   interviewId: string;
-  code: string;
-  language: string;
+  code?: string; // Optional - will use current code from state if not provided
+  language?: string; // Optional - will use current language from state if not provided
 }
 
 /**
@@ -444,6 +479,12 @@ export const executeCode = async (
     };
   }
 
+  // Use provided code/language or fall back to current state
+  const codeToExecute = args.code || state.codingState.currentCode;
+  const language = args.language || state.codingState.language;
+  
+  console.log(`[executeCode] Running code for ${args.interviewId}, language: ${language}, code length: ${codeToExecute.length}`);
+
   // Get test cases for the problem
   const problem = await db.codingProblem.findUnique({
     where: { id: state.codingState.problemId },
@@ -459,23 +500,23 @@ export const executeCode = async (
 
   // Execute code with Piston
   const result = await pistonService.executeWithTestCases(
-    args.code,
-    args.language,
+    codeToExecute,
+    language,
     problem.testCases as pistonService.TestCase[]
   );
 
   // Record submission
   interviewStateService.recordCodeSubmission(
     args.interviewId,
-    args.code,
-    args.language,
+    codeToExecute,
+    language,
     result
   );
 
   // Update coding state
   interviewStateService.updateCodingState(args.interviewId, {
-    code: args.code,
-    language: args.language,
+    code: codeToExecute,
+    language: language,
     executionResult: result,
   });
 

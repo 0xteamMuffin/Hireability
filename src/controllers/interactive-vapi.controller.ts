@@ -338,6 +338,7 @@ export const checkCodeProgress = async (
 /**
  * Execute candidate's code
  * Tool: executeCode
+ * Note: code and language are optional - if not provided, uses current code from interview state
  */
 export const executeCode = async (
   req: Request,
@@ -353,15 +354,11 @@ export const executeCode = async (
       return;
     }
 
-    if (!args.code) {
-      res.json(buildResponse(toolCallId, { error: 'code is required' }));
-      return;
-    }
-
+    // Code and language are optional - service will use current state if not provided
     const result = await interactiveVapiService.executeCode({
       interviewId,
-      code: args.code as string,
-      language: (args.language as string) || 'javascript',
+      code: args.code as string | undefined,
+      language: args.language as string | undefined,
     });
 
     // Return speech-friendly feedback

@@ -93,6 +93,14 @@ const handleJoinInterview = (socket: Socket) => {
     if (state) {
       socket.emit(SocketEvent.STATE_UPDATE, { state });
     }
+    
+    // If there's an active coding problem, send it to the client
+    // This handles the case where client joins after presentCodingProblem was called
+    const fullState = interviewStateService.getInterviewState(interviewId);
+    if (fullState?.codingState) {
+      console.log(`[Socket] Sending existing coding problem to newly joined client: ${fullState.codingState.problemTitle}`);
+      socket.emit(SocketEvent.CODING_PROBLEM_ASSIGNED, { problem: fullState.codingState });
+    }
   };
 };
 
@@ -118,7 +126,12 @@ const handleLeaveInterview = (socket: Socket) => {
 const handleCodeUpdate = (socket: Socket) => {
   return (data: { code: string; language: string }) => {
     const interviewId = socket.data.interviewId;
-    if (!interviewId) return;
+    if (!interviewId) {
+      console.log('[Socket] CODE_UPDATE received but no interviewId on socket');
+      return;
+    }
+    
+    console.log(`[Socket] CODE_UPDATE received for ${interviewId}, language: ${data.language}, code length: ${data.code.length}`);
     
     // Update interview state with new code
     interviewStateService.updateCodingState(interviewId, {
@@ -229,9 +242,17 @@ export const emitCodingProblemAssigned = (
   interviewId: string,
   problem: CodingState
 ): void => {
-  if (!io) return;
+  if (!io) {
+    console.log('[Socket] emitCodingProblemAssigned: io not initialized');
+    return;
+  }
   
-  io.to(`interview:${interviewId}`).emit(SocketEvent.CODING_PROBLEM_ASSIGNED, { problem });
+  const roomName = `interview:${interviewId}`;
+  const room = io.sockets.adapter.rooms.get(roomName);
+  const clientsInRoom = room ? room.size : 0;
+  
+  console.log(`[Socket] Emitting CODING_PROBLEM_ASSIGNED to room: ${roomName}, clients in room: ${clientsInRoom}, problem: ${problem.problemTitle}`);
+  io.to(roomName).emit(SocketEvent.CODING_PROBLEM_ASSIGNED, { problem });
 };
 
 /**
