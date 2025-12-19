@@ -18,8 +18,7 @@ import * as interviewStateService from './interview-state.service';
 
 let io: Server | null = null;
 
-// Track which users are in which interview rooms
-const interviewRooms = new Map<string, Set<string>>(); // interviewId -> Set<socketId>
+const interviewRooms = new Map<string, Set<string>>();
 
 /**
  * Initialize Socket.io server
@@ -37,22 +36,16 @@ export const initializeSocketServer = (httpServer: HTTPServer): Server => {
   io.on('connection', (socket: Socket) => {
     console.log(`[Socket] Client connected: ${socket.id}`);
 
-    // Handle joining an interview room
     socket.on(SocketEvent.JOIN_INTERVIEW, handleJoinInterview(socket));
 
-    // Handle leaving an interview room
     socket.on(SocketEvent.LEAVE_INTERVIEW, handleLeaveInterview(socket));
 
-    // Handle code updates from frontend (for coding rounds)
     socket.on(SocketEvent.CODE_UPDATE, handleCodeUpdate(socket));
 
-    // Handle expression updates from frontend (facial detection)
     socket.on(SocketEvent.EXPRESSION_UPDATE, handleExpressionUpdate(socket));
 
-    // Handle state request
     socket.on(SocketEvent.REQUEST_STATE, handleRequestState(socket));
 
-    // Handle disconnect
     socket.on('disconnect', handleDisconnect(socket));
   });
 
@@ -65,40 +58,32 @@ export const initializeSocketServer = (httpServer: HTTPServer): Server => {
  */
 export const getIO = (): Server | null => io;
 
-// ============================================================================
-// EVENT HANDLERS
-// ============================================================================
-
 const handleJoinInterview = (socket: Socket) => {
   return (data: { interviewId: string; userId: string }) => {
     const { interviewId, userId } = data;
-    
-    // Join the room
+
     socket.join(`interview:${interviewId}`);
-    
-    // Track the connection
+
     if (!interviewRooms.has(interviewId)) {
       interviewRooms.set(interviewId, new Set());
     }
     interviewRooms.get(interviewId)!.add(socket.id);
-    
-    // Store user info on socket
+
     socket.data.interviewId = interviewId;
     socket.data.userId = userId;
-    
+
     console.log(`[Socket] User ${userId} joined interview ${interviewId}`);
-    
-    // Send current state to the client (wrapped in { state: ... } to match expected format)
+
     const state = interviewStateService.getStateSnapshot(interviewId);
     if (state) {
       socket.emit(SocketEvent.STATE_UPDATE, { state });
     }
-    
-    // If there's an active coding problem, send it to the client
-    // This handles the case where client joins after presentCodingProblem was called
+
     const fullState = interviewStateService.getInterviewState(interviewId);
     if (fullState?.codingState) {
-      console.log(`[Socket] Sending existing coding problem to newly joined client: ${fullState.codingState.problemTitle}`);
+      console.log(
+        `[Socket] Sending existing coding problem to newly joined client: ${fullState.codingState.problemTitle}`,
+      );
       socket.emit(SocketEvent.CODING_PROBLEM_ASSIGNED, { problem: fullState.codingState });
     }
   };
@@ -107,10 +92,9 @@ const handleJoinInterview = (socket: Socket) => {
 const handleLeaveInterview = (socket: Socket) => {
   return (data: { interviewId: string }) => {
     const { interviewId } = data;
-    
+
     socket.leave(`interview:${interviewId}`);
-    
-    // Remove from tracking
+
     const room = interviewRooms.get(interviewId);
     if (room) {
       room.delete(socket.id);
@@ -118,7 +102,7 @@ const handleLeaveInterview = (socket: Socket) => {
         interviewRooms.delete(interviewId);
       }
     }
-    
+
     console.log(`[Socket] Socket ${socket.id} left interview ${interviewId}`);
   };
 };
@@ -130,33 +114,35 @@ const handleCodeUpdate = (socket: Socket) => {
       console.log('[Socket] CODE_UPDATE received but no interviewId on socket');
       return;
     }
-    
-    console.log(`[Socket] CODE_UPDATE received for ${interviewId}, language: ${data.language}, code length: ${data.code.length}`);
-    
-    // Update interview state with new code
+
+    console.log(
+      `[Socket] CODE_UPDATE received for ${interviewId}, language: ${data.language}, code length: ${data.code.length}`,
+    );
+
     interviewStateService.updateCodingState(interviewId, {
       code: data.code,
       language: data.language,
     });
-    
-    // Update candidate signals
+
     interviewStateService.updateCandidateSignals(interviewId, {
       isTyping: true,
       lastCodeUpdate: new Date(),
       codeLength: data.code.length,
     });
-    
-    // Broadcast to other clients in the room (if any)
+
     socket.to(`interview:${interviewId}`).emit(SocketEvent.CODE_UPDATE, data);
   };
 };
 
 const handleExpressionUpdate = (socket: Socket) => {
-  return (data: { expression: string; confidence: number; averageExpressions?: Record<string, number> }) => {
+  return (data: {
+    expression: string;
+    confidence: number;
+    averageExpressions?: Record<string, number>;
+  }) => {
     const interviewId = socket.data.interviewId;
     if (!interviewId) return;
-    
-    // Update candidate signals
+
     interviewStateService.updateCandidateSignals(interviewId, {
       currentExpression: data.expression,
       expressionConfidence: data.confidence,
@@ -177,7 +163,7 @@ const handleRequestState = (socket: Socket) => {
 const handleDisconnect = (socket: Socket) => {
   return () => {
     const interviewId = socket.data.interviewId;
-    
+
     if (interviewId) {
       const room = interviewRooms.get(interviewId);
       if (room) {
@@ -187,14 +173,10 @@ const handleDisconnect = (socket: Socket) => {
         }
       }
     }
-    
+
     console.log(`[Socket] Client disconnected: ${socket.id}`);
   };
 };
-
-// ============================================================================
-// EMIT FUNCTIONS (Called from other services)
-// ============================================================================
 
 /**
  * Emit state update to all clients in an interview room
@@ -205,7 +187,7 @@ export const emitStateUpdate = (interviewId: string): void => {
     console.warn('[Socket] Cannot emit - io is null');
     return;
   }
-  
+
   const state = interviewStateService.getStateSnapshot(interviewId);
   console.log('[Socket] State found:', !!state, 'phase:', state?.phase);
   if (state) {
@@ -219,7 +201,7 @@ export const emitStateUpdate = (interviewId: string): void => {
  */
 export const emitQuestionAsked = (interviewId: string, question: QuestionState): void => {
   if (!io) return;
-  
+
   io.to(`interview:${interviewId}`).emit(SocketEvent.QUESTION_ASKED, { question });
 };
 
@@ -228,42 +210,38 @@ export const emitQuestionAsked = (interviewId: string, question: QuestionState):
  */
 export const emitAnswerEvaluated = (
   interviewId: string,
-  evaluation: AnswerEvaluationResponse
+  evaluation: AnswerEvaluationResponse,
 ): void => {
   if (!io) return;
-  
+
   io.to(`interview:${interviewId}`).emit(SocketEvent.ANSWER_EVALUATED, evaluation);
 };
 
 /**
  * Emit when a coding problem is assigned
  */
-export const emitCodingProblemAssigned = (
-  interviewId: string,
-  problem: CodingState
-): void => {
+export const emitCodingProblemAssigned = (interviewId: string, problem: CodingState): void => {
   if (!io) {
     console.log('[Socket] emitCodingProblemAssigned: io not initialized');
     return;
   }
-  
+
   const roomName = `interview:${interviewId}`;
   const room = io.sockets.adapter.rooms.get(roomName);
   const clientsInRoom = room ? room.size : 0;
-  
-  console.log(`[Socket] Emitting CODING_PROBLEM_ASSIGNED to room: ${roomName}, clients in room: ${clientsInRoom}, problem: ${problem.problemTitle}`);
+
+  console.log(
+    `[Socket] Emitting CODING_PROBLEM_ASSIGNED to room: ${roomName}, clients in room: ${clientsInRoom}, problem: ${problem.problemTitle}`,
+  );
   io.to(roomName).emit(SocketEvent.CODING_PROBLEM_ASSIGNED, { problem });
 };
 
 /**
  * Emit code execution result
  */
-export const emitCodeExecuted = (
-  interviewId: string,
-  result: CodeExecutionResult
-): void => {
+export const emitCodeExecuted = (interviewId: string, result: CodeExecutionResult): void => {
   if (!io) return;
-  
+
   io.to(`interview:${interviewId}`).emit(SocketEvent.CODE_EXECUTED, result);
 };
 
@@ -273,10 +251,10 @@ export const emitCodeExecuted = (
 export const emitHintProvided = (
   interviewId: string,
   hint: string,
-  hintsRemaining: number
+  hintsRemaining: number,
 ): void => {
   if (!io) return;
-  
+
   io.to(`interview:${interviewId}`).emit(SocketEvent.HINT_PROVIDED, { hint, hintsRemaining });
 };
 
@@ -286,10 +264,10 @@ export const emitHintProvided = (
 export const emitPhaseChanged = (
   interviewId: string,
   phase: InterviewPhase,
-  reason: string
+  reason: string,
 ): void => {
   if (!io) return;
-  
+
   io.to(`interview:${interviewId}`).emit(SocketEvent.PHASE_CHANGED, { phase, reason });
 };
 
@@ -298,10 +276,10 @@ export const emitPhaseChanged = (
  */
 export const emitInterviewCompleted = (
   interviewId: string,
-  summary: InterviewStateSnapshot
+  summary: InterviewStateSnapshot,
 ): void => {
   if (!io) return;
-  
+
   io.to(`interview:${interviewId}`).emit(SocketEvent.INTERVIEW_COMPLETED, { summary });
 };
 

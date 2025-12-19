@@ -6,7 +6,7 @@ import * as interviewService from '../services/interview.service';
 export const saveTranscript = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -30,7 +30,6 @@ export const saveTranscript = async (
     try {
       const saved = await transcriptService.saveTranscript(userId, body);
 
-      // Optionally persist professional demeanor dimension if provided
       if (body.professional) {
         await interviewService.saveAnalysis(userId, {
           interviewId: body.interviewId,
@@ -40,10 +39,12 @@ export const saveTranscript = async (
 
       res.json({ success: true, data: saved });
     } catch (err) {
-      res.status(400).json({ success: false, message: err instanceof Error ? err.message : 'Failed to save transcript' });
+      res.status(400).json({
+        success: false,
+        message: err instanceof Error ? err.message : 'Failed to save transcript',
+      });
     }
   } catch (error) {
     next(error);
   }
 };
-

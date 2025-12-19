@@ -11,21 +11,21 @@ import { Difficulty, SubmitCodeRequest } from '../types/round.types';
 export const getProblem = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { difficulty, category } = req.query;
-    
+
     const problem = await codingService.getProblem(
       difficulty as Difficulty | undefined,
-      category as string | undefined
+      category as string | undefined,
     );
-    
+
     if (!problem) {
       res.status(404).json({ success: false, message: 'No problem found' });
       return;
     }
-    
+
     res.json({ success: true, data: problem });
   } catch (error) {
     next(error);
@@ -35,18 +35,18 @@ export const getProblem = async (
 export const getProblemById = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { problemId } = req.params;
-    
+
     const problem = await codingService.getProblemById(problemId);
-    
+
     if (!problem) {
       res.status(404).json({ success: false, message: 'Problem not found' });
       return;
     }
-    
+
     res.json({ success: true, data: problem });
   } catch (error) {
     next(error);
@@ -56,16 +56,16 @@ export const getProblemById = async (
 export const getAllProblems = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { difficulty, category } = req.query;
-    
+
     const problems = await codingService.getAllProblems(
       difficulty as Difficulty | undefined,
-      category as string | undefined
+      category as string | undefined,
     );
-    
+
     res.json({ success: true, data: problems });
   } catch (error) {
     next(error);
@@ -75,7 +75,7 @@ export const getAllProblems = async (
 export const assignProblem = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -86,13 +86,13 @@ export const assignProblem = async (
 
     const { roundId } = req.params;
     const { problemId, difficulty } = req.body;
-    
+
     const problem = await codingService.assignProblemToRound(
       roundId,
       problemId,
-      difficulty as Difficulty | undefined
+      difficulty as Difficulty | undefined,
     );
-    
+
     res.json({ success: true, data: problem });
   } catch (error) {
     if (error instanceof Error) {
@@ -106,7 +106,7 @@ export const assignProblem = async (
 export const submitCode = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -116,7 +116,7 @@ export const submitCode = async (
     }
 
     const body = req.body as SubmitCodeRequest;
-    
+
     if (!body.roundId || !body.code || !body.language) {
       res.status(400).json({
         success: false,
@@ -124,7 +124,7 @@ export const submitCode = async (
       });
       return;
     }
-    
+
     const result = await codingService.submitCode(userId, body);
     res.json({ success: true, data: result });
   } catch (error) {
@@ -136,11 +136,7 @@ export const submitCode = async (
   }
 };
 
-export const getHint = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+export const getHint = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -149,7 +145,7 @@ export const getHint = async (
     }
 
     const { code, language, problemDescription } = req.body;
-    
+
     if (!code || !language || !problemDescription) {
       res.status(400).json({
         success: false,
@@ -157,7 +153,7 @@ export const getHint = async (
       });
       return;
     }
-    
+
     const hint = await codingService.getCodeHint(code, language, problemDescription);
     res.json({ success: true, data: { hint } });
   } catch (error) {
@@ -168,7 +164,7 @@ export const getHint = async (
 export const seedProblems = async (
   _req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     await codingService.seedProblems();
@@ -181,11 +177,7 @@ export const seedProblems = async (
 /**
  * Run code without evaluation (just execution)
  */
-export const runCode = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+export const runCode = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -204,7 +196,7 @@ export const runCode = async (
     }
 
     const result = await pistonService.executeCode(code, language, stdin);
-    
+
     res.json({
       success: true,
       data: {

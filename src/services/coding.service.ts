@@ -19,43 +19,40 @@ const db = prisma as any;
  */
 export const getProblem = async (
   difficulty?: Difficulty,
-  category?: string
+  category?: string,
 ): Promise<CodingProblemResponse | null> => {
   const where: any = {};
-  
+
   if (difficulty) {
     where.difficulty = difficulty;
   }
   if (category) {
     where.category = category;
   }
-  
-  // Get random problem matching criteria
+
   const problems = await db.codingProblem.findMany({
     where,
     take: 10,
   });
-  
+
   if (!problems.length) {
     return null;
   }
-  
+
   const randomIndex = Math.floor(Math.random() * problems.length);
   const problem = problems[randomIndex];
-  
+
   return formatProblemResponse(problem);
 };
 
 /**
  * Get problem by ID
  */
-export const getProblemById = async (
-  problemId: string
-): Promise<CodingProblemResponse | null> => {
+export const getProblemById = async (problemId: string): Promise<CodingProblemResponse | null> => {
   const problem = await db.codingProblem.findUnique({
     where: { id: problemId },
   });
-  
+
   return problem ? formatProblemResponse(problem) : null;
 };
 
@@ -64,18 +61,18 @@ export const getProblemById = async (
  */
 export const getAllProblems = async (
   difficulty?: Difficulty,
-  category?: string
+  category?: string,
 ): Promise<CodingProblemResponse[]> => {
   const where: any = {};
-  
+
   if (difficulty) where.difficulty = difficulty;
   if (category) where.category = category;
-  
+
   const problems = await db.codingProblem.findMany({
     where,
     orderBy: { createdAt: 'desc' },
   });
-  
+
   return problems.map(formatProblemResponse);
 };
 
@@ -85,27 +82,25 @@ export const getAllProblems = async (
 export const assignProblemToRound = async (
   roundId: string,
   problemId?: string,
-  difficulty?: Difficulty
+  difficulty?: Difficulty,
 ): Promise<CodingProblemResponse> => {
   let problem;
-  
+
   if (problemId) {
     problem = await getProblemById(problemId);
   } else {
-    // Get random problem based on difficulty
     problem = await getProblem(difficulty || Difficulty.MEDIUM);
   }
-  
+
   if (!problem) {
     throw new Error('No suitable coding problem found');
   }
-  
-  // Update round with problem
+
   await db.interviewRound.update({
     where: { id: roundId },
     data: { problemId: problem.id },
   });
-  
+
   return problem;
 };
 
@@ -114,21 +109,19 @@ export const assignProblemToRound = async (
  */
 export const submitCode = async (
   userId: string,
-  payload: SubmitCodeRequest
+  payload: SubmitCodeRequest,
 ): Promise<CodeEvaluationResult> => {
-  // Get the round and verify ownership through session
   const round = await db.interviewRound.findUnique({
     where: { id: payload.roundId },
     include: {
       session: true,
     },
   });
-  
+
   if (!round || round.session.userId !== userId) {
     throw new Error('Round not found or access denied');
   }
-  
-  // Save the submission
+
   await db.interviewRound.update({
     where: { id: payload.roundId },
     data: {
@@ -136,20 +129,18 @@ export const submitCode = async (
       codeLanguage: payload.language,
     },
   });
-  
-  // Get the problem for evaluation
+
   const problem = round.problemId
     ? await db.codingProblem.findUnique({ where: { id: round.problemId } })
     : null;
-  
-  // Evaluate with AI
+
   const evaluation = await evaluateCode(
     payload.code,
     payload.language,
     problem?.description || 'General coding assessment',
-    problem?.testCases
+    problem?.testCases,
   );
-  
+
   return evaluation;
 };
 
@@ -160,7 +151,7 @@ export const evaluateCode = async (
   code: string,
   language: string,
   problemDescription: string,
-  testCases?: any[]
+  testCases?: any[],
 ): Promise<CodeEvaluationResult> => {
   const prompt = `
 You are a code reviewer evaluating a candidate's solution.
@@ -204,16 +195,15 @@ Respond ONLY with the JSON object, no markdown.
 
   try {
     const result = await genai.models.generateContent({
-      model: process.env.MODEL_NAME || "gemini-flash-latest",
+      model: process.env.MODEL_NAME || 'gemini-flash-latest',
       contents: prompt,
       config: geminiConfig,
     });
     const text = (result.text || '').trim();
-    
-    // Parse JSON response
+
     const cleanText = text.replace(/```json\n?|\n?```/g, '').trim();
     const evaluation = JSON.parse(cleanText);
-    
+
     return {
       passed: evaluation.passed ?? false,
       score: evaluation.score ?? 0,
@@ -237,7 +227,7 @@ Respond ONLY with the JSON object, no markdown.
 export const getCodeHint = async (
   code: string,
   language: string,
-  problemDescription: string
+  problemDescription: string,
 ): Promise<string> => {
   const prompt = `
 You are a helpful interviewer giving a hint to a candidate who is stuck.
@@ -260,7 +250,7 @@ Be encouraging and constructive. Do NOT provide the solution.
 
   try {
     const result = await genai.models.generateContent({
-      model: process.env.MODEL_NAME || "gemini-flash-latest",
+      model: process.env.MODEL_NAME || 'gemini-flash-latest',
       contents: prompt,
       config: geminiConfig,
     });
@@ -294,7 +284,7 @@ Explanation: Because nums[0] + nums[1] == 9, we return [0, 1].`,
         typescript: `function twoSum(nums: number[], target: number): number[] {\n  // Your code here\n}`,
       },
       hints: [
-        'Consider using a hash map to store values you\'ve seen',
+        "Consider using a hash map to store values you've seen",
         'For each number, check if target - number exists in your map',
       ],
       testCases: [
@@ -357,7 +347,7 @@ Output: [5,4,3,2,1]`,
       ],
     },
   ];
-  
+
   for (const problem of problems) {
     await db.codingProblem.upsert({
       where: { title: problem.title },
@@ -365,7 +355,7 @@ Output: [5,4,3,2,1]`,
       create: problem,
     });
   }
-  
+
   console.log('Seeded coding problems');
 };
 

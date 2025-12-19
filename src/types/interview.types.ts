@@ -10,7 +10,7 @@ export interface StartInterviewRequest {
 export interface AnalysisDimension {
   score?: number | null;
   notes?: string | null;
-  source?: string | null; // e.g., gemini, speech, frontend
+  source?: string | null;
 }
 
 export interface SaveAnalysisRequest {
@@ -35,4 +35,3 @@ export interface AnalysisResult {
   overall?: AnalysisDimension;
   modelVersion?: string | null;
 }
-

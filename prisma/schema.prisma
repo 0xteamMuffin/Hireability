@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,33 +7,33 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  username  String   @unique
-  password  String
-  
+  id       String @id @default(cuid())
+  email    String @unique
+  username String @unique
+  password String
+
   firstName String?
   lastName  String?
   bio       String?
   avatarUrl String?
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  profile        UserProfile?
-  documents      Document[]
-  targetCompanies TargetCompany[]
-  settings       UserSettings?
-  interviews     Interview[]
+  profile              UserProfile?
+  documents            Document[]
+  targetCompanies      TargetCompany[]
+  settings             UserSettings?
+  interviews           Interview[]
   interviewTranscripts InterviewTranscript[]
 
   @@map("users")
 }
 
 model UserProfile {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   targetRole    String?
   targetCompany String?
@@ -48,26 +45,20 @@ model UserProfile {
   @@map("user_profiles")
 }
 
-// ===========================================
-// AGENTIC PARSER - Simple & Generic
-// ===========================================
-
 model Document {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  type      DocumentType
-  fileName  String
-  mimeType  String?
-  rawText   String?
-  
-  // Processing
+  type     DocumentType
+  fileName String
+  mimeType String?
+  rawText  String?
+
   status     ProcessingStatus @default(PENDING)
   parsedData Json?
-  review     String?  // Markdown review
-  
-  // Agent metadata
+  review     String?
+
   agentVersion String?
   confidence   Float?
   tokenUsage   Int?
@@ -94,9 +85,9 @@ enum ProcessingStatus {
 }
 
 model TargetCompany {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   companyName  String
   role         String
@@ -110,18 +101,17 @@ model TargetCompany {
 }
 
 model UserSettings {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  notifications    Boolean @default(true)
-  darkMode         Boolean @default(false)
-  language         String  @default("en")
-  
-  // Interview Settings
-  multiRoundEnabled   Boolean  @default(true)  // Enable multi-round sessions
-  prerequisitesEnabled Boolean @default(true)  // Enforce round ordering/locking
-  defaultRounds       String[] @default(["BEHAVIORAL", "TECHNICAL", "CODING"]) // Default rounds for new interviews
+  notifications Boolean @default(true)
+  darkMode      Boolean @default(false)
+  language      String  @default("en")
+
+  multiRoundEnabled    Boolean  @default(true)
+  prerequisitesEnabled Boolean  @default(true)
+  defaultRounds        String[] @default(["BEHAVIORAL", "TECHNICAL", "CODING"])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -130,9 +120,9 @@ model UserSettings {
 }
 
 model InterviewTranscript {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   interviewId     String
   interview       Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
   assistantId     String?
@@ -141,90 +131,86 @@ model InterviewTranscript {
   endedAt         DateTime?
   durationSeconds Int?
   transcript      Json
-  createdAt       DateTime @default(now())
+  createdAt       DateTime  @default(now())
 
   @@map("interview_transcripts")
 }
 
 model Interview {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   assistantId     String?
-  startedAt       DateTime @default(now())
+  startedAt       DateTime  @default(now())
   endedAt         DateTime?
   durationSeconds Int?
   contextPrompt   String?
   callId          String?
-  
-  // Round System
-  roundType       RoundType @default(BEHAVIORAL)
-  roundOrder      Int       @default(1)  // Order in the interview session
-  sessionId       String?   // Groups rounds belonging to the same interview session
-  status          InterviewStatus @default(NOT_STARTED)
-  
-  createdAt       DateTime @default(now())
 
-  transcripts     InterviewTranscript[]
-  analysis        InterviewAnalysis?
+  roundType  RoundType       @default(BEHAVIORAL)
+  roundOrder Int             @default(1)
+  sessionId  String?
+  status     InterviewStatus @default(NOT_STARTED)
+
+  createdAt DateTime @default(now())
+
+  transcripts InterviewTranscript[]
+  analysis    InterviewAnalysis?
 
   @@map("interviews")
 }
 
-// Interview Session to group multiple rounds
 model InterviewSession {
-  id              String   @id @default(cuid())
-  userId          String
-  targetId        String?  // Reference to target company
-  status          SessionStatus @default(IN_PROGRESS)
-  currentRound    Int      @default(1)
-  totalRounds     Int      @default(2)
-  completedAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  rounds          InterviewRound[]
-  
+  id           String        @id @default(cuid())
+  userId       String
+  targetId     String?
+  status       SessionStatus @default(IN_PROGRESS)
+  currentRound Int           @default(1)
+  totalRounds  Int           @default(2)
+  completedAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  rounds InterviewRound[]
+
   @@map("interview_sessions")
 }
 
 model InterviewRound {
-  id              String   @id @default(cuid())
-  sessionId       String
-  session         InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  interviewId     String?  // Link to actual Interview when started
-  
-  roundType       RoundType
-  order           Int
-  status          InterviewStatus @default(NOT_STARTED)
-  isLocked        Boolean  @default(false)  // Prerequisites not met
-  
-  // Coding round specific
-  problemId       String?
-  codeSubmission  String?
-  codeLanguage    String?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  id          String           @id @default(cuid())
+  sessionId   String
+  session     InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  interviewId String?
+
+  roundType RoundType
+  order     Int
+  status    InterviewStatus @default(NOT_STARTED)
+  isLocked  Boolean         @default(false)
+
+  problemId      String?
+  codeSubmission String?
+  codeLanguage   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("interview_rounds")
 }
 
-// Coding problems for technical coding rounds
 model CodingProblem {
-  id              String   @id @default(cuid())
-  title           String   @unique
-  description     String
-  difficulty      Difficulty
-  category        String   // e.g., "arrays", "trees", "dynamic-programming"
-  starterCode     Json?    // { javascript: "...", python: "...", etc }
-  testCases       Json?    // Array of test cases
-  hints           String[]
-  solution        String?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  id          String     @id @default(cuid())
+  title       String     @unique
+  description String
+  difficulty  Difficulty
+  category    String
+  starterCode Json?
+  testCases   Json?
+  hints       String[]
+  solution    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("coding_problems")
 }
 
@@ -256,8 +242,8 @@ enum Difficulty {
 }
 
 model InterviewAnalysis {
-  id             String   @id @default(cuid())
-  interviewId    String   @unique
+  id             String    @id @default(cuid())
+  interviewId    String    @unique
   interview      Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
   technical      Json?
   problemSolving Json?
@@ -267,7 +253,7 @@ model InterviewAnalysis {
   professional   Json?
   overall        Json?
   modelVersion   String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
   @@map("interview_analysis")
 }

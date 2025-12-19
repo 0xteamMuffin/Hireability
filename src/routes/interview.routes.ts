@@ -13,4 +13,3 @@ router.post('/analysis', authMiddleware, interviewController.saveAnalysis);
 router.post('/:id/analyze', authMiddleware, interviewController.analyzeInterview);
 
 export default router;
-

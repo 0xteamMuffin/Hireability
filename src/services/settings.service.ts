@@ -8,9 +8,7 @@ import {
   UserDetailsResponse,
 } from '../types/settings.types';
 
-export const getUserDetails = async (
-  userId: string
-): Promise<UserDetailsResponse | null> => {
+export const getUserDetails = async (userId: string): Promise<UserDetailsResponse | null> => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { settings: true },
@@ -48,7 +46,7 @@ export const getUserDetails = async (
 
 export const updateUserDetails = async (
   userId: string,
-  data: UpdateUserInput
+  data: UpdateUserInput,
 ): Promise<UserDetailsResponse | null> => {
   const user = await prisma.user.update({
     where: { id: userId },
@@ -91,7 +89,7 @@ export const updateUserDetails = async (
 
 export const updatePassword = async (
   userId: string,
-  data: UpdatePasswordInput
+  data: UpdatePasswordInput,
 ): Promise<boolean> => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -116,9 +114,7 @@ export const updatePassword = async (
   return true;
 };
 
-export const getSettings = async (
-  userId: string
-): Promise<UserSettingsResponse | null> => {
+export const getSettings = async (userId: string): Promise<UserSettingsResponse | null> => {
   const settings = await prisma.userSettings.findUnique({
     where: { userId },
   });
@@ -142,7 +138,7 @@ export const getSettings = async (
 
 export const upsertSettings = async (
   userId: string,
-  data: UpdateSettingsInput
+  data: UpdateSettingsInput,
 ): Promise<UserSettingsResponse> => {
   const settings = await prisma.userSettings.upsert({
     where: { userId },

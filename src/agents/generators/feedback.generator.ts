@@ -3,7 +3,6 @@ import { PauseMetrics } from '../../types/vapi.types';
 import dotenv from 'dotenv';
 dotenv.config();
 
-// const AGENT_VERSION = '1.0.0';
 const MODEL = process.env.MODEL_NAME || 'gemini-flash-latest';
 
 interface FeedbackContext {
@@ -36,11 +35,7 @@ export interface FeedbackResult {
 }
 
 export class FeedbackGeneratorAgent {
-  // private agentVersion: string;
-
-  constructor() {
-    // this.agentVersion = AGENT_VERSION;
-  }
+  constructor() {}
 
   async generate(context: FeedbackContext): Promise<FeedbackResult> {
     try {
@@ -75,7 +70,7 @@ export class FeedbackGeneratorAgent {
 
   private buildPrompt(context: FeedbackContext): string {
     let speechAnalysisSection = '';
-    
+
     if (context.pauseMetrics) {
       const pm = context.pauseMetrics;
       speechAnalysisSection = `

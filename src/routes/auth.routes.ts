@@ -11,4 +11,3 @@ router.post('/signin', signinValidation, validate, authController.signin.bind(au
 router.get('/me', authenticate, authController.getMe.bind(authController));
 
 export default router;
-

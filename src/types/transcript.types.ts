@@ -15,4 +15,3 @@ export interface SaveTranscriptRequest {
   }>;
   professional?: AnalysisDimension;
 }
-

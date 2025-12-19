@@ -6,7 +6,7 @@ import '../types/auth.types';
 export const uploadResume = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -25,7 +25,7 @@ export const uploadResume = async (
       req.file.buffer,
       req.file.originalname,
       req.file.mimetype,
-      DocumentType.RESUME
+      DocumentType.RESUME,
     );
 
     res.json({
@@ -41,7 +41,7 @@ export const uploadResume = async (
 export const getResumeData = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -66,7 +66,7 @@ export const getResumeData = async (
 export const getResumeReview = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -87,4 +87,3 @@ export const getResumeReview = async (
     next(error);
   }
 };
-

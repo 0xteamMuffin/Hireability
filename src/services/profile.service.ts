@@ -1,8 +1,5 @@
 import { prisma } from '../utils/prisma.util';
-import {
-  CreateProfileInput,
-  UpdateProfileInput,
-} from '../types/profile.types';
+import { CreateProfileInput, UpdateProfileInput } from '../types/profile.types';
 
 export interface ProfileResponse {
   id: string;
@@ -34,7 +31,7 @@ export const getProfile = async (userId: string): Promise<ProfileResponse | null
 
 export const upsertProfile = async (
   userId: string,
-  data: CreateProfileInput | UpdateProfileInput
+  data: CreateProfileInput | UpdateProfileInput,
 ): Promise<ProfileResponse> => {
   const profile = await prisma.userProfile.upsert({
     where: { userId },

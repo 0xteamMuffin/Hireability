@@ -13,7 +13,10 @@ import {
   VapiUserDataResponse,
 } from '../types/vapi.types';
 import { questionGeneratorAgent } from '../agents';
-import { buildAdaptiveSystemPrompt, buildFirstMessage as buildRoundFirstMessage } from '../utils/system-prompt.util';
+import {
+  buildAdaptiveSystemPrompt,
+  buildFirstMessage as buildRoundFirstMessage,
+} from '../utils/system-prompt.util';
 import { RoundType } from '../types/interview-state.types';
 
 const CONTEXT_CHAR_LIMIT = 3000;
@@ -25,7 +28,7 @@ const trimContext = (value: string): string => {
 
 const buildSystemPrompt = (
   profile: NonNullable<VapiUserDataResponse['data']>,
-  resume: VapiResumeDataResponse['data'] | null
+  resume: VapiResumeDataResponse['data'] | null,
 ): string => {
   const company = profile.targetCompany || 'a top tech company';
   const role = profile.targetRole || 'Software Engineer';
@@ -74,9 +77,7 @@ const buildSystemPrompt = (
   return [instructions, '---', 'CONTEXT DATA:', profileSection, resumeSection].join('\n\n');
 };
 
-const buildFirstMessage = (
-  profile: NonNullable<VapiUserDataResponse['data']>
-): string => {
+const buildFirstMessage = (profile: NonNullable<VapiUserDataResponse['data']>): string => {
   const company = profile.targetCompany || 'our company';
   const role = profile.targetRole || 'the role';
   return `Hello! I'm your interviewer from ${company}. I've reviewed your application for the ${role} position. To get us started, could you please introduce yourself and tell me a bit about your background?`;
@@ -84,7 +85,7 @@ const buildFirstMessage = (
 
 export const getUserData = async (userId: string): Promise<VapiUserDataResponse> => {
   const profile = await profileService.getProfile(userId);
-  
+
   if (!profile) {
     return { error: 'Profile not found', data: null };
   }
@@ -118,9 +119,9 @@ export const getResumeData = async (userId: string): Promise<VapiResumeDataRespo
 };
 
 export const getUserContext = async (
-  userId: string, 
+  userId: string,
   targetId?: string,
-  roundType?: string
+  roundType?: string,
 ): Promise<UserContextResponse> => {
   const [profileResult, resumeResult] = await Promise.all([
     getUserData(userId),
@@ -136,7 +137,6 @@ export const getUserContext = async (
     };
   }
 
-  // Override with specific target if provided
   if (targetId) {
     const target = await targetService.getTargetById(targetId, userId);
     if (target) {
@@ -145,23 +145,26 @@ export const getUserContext = async (
     }
   }
 
-  // Build resume summary for context
   let resumeSummary: string | undefined;
   if (resumeResult.data?.parsedData) {
     const parsed = resumeResult.data.parsedData as Record<string, unknown>;
-    resumeSummary = trimContext(JSON.stringify({
-      skills: parsed.skills,
-      experience: parsed.experience,
-      education: parsed.education,
-    }, null, 2));
+    resumeSummary = trimContext(
+      JSON.stringify(
+        {
+          skills: parsed.skills,
+          experience: parsed.experience,
+          education: parsed.education,
+        },
+        null,
+        2,
+      ),
+    );
   }
 
-  // Use adaptive system prompt when roundType is specified, otherwise use generic
   let systemPrompt: string;
   let firstMessage: string;
-  
+
   if (roundType && Object.values(RoundType).includes(roundType as RoundType)) {
-    // Generate a unique interviewId placeholder - the actual one will be set when interview starts
     const interviewIdPlaceholder = '{{interviewId}}';
     systemPrompt = buildAdaptiveSystemPrompt({
       targetRole: profileResult.data.targetRole || undefined,
@@ -171,8 +174,7 @@ export const getUserContext = async (
       roundType: roundType as RoundType,
       interviewId: interviewIdPlaceholder,
     });
-    
-    // Use round-specific first message
+
     firstMessage = buildRoundFirstMessage({
       targetRole: profileResult.data.targetRole || undefined,
       targetCompany: profileResult.data.targetCompany || undefined,
@@ -197,7 +199,7 @@ export const getUserContext = async (
 
 export const getQuestions = async (
   userId: string,
-  args: GetQuestionsArgs
+  args: GetQuestionsArgs,
 ): Promise<{ error: string | null; data: GeneratedQuestion[] | null }> => {
   const category: QuestionCategory = args.category || 'mixed';
   const limit = args.limit || 5;
@@ -229,38 +231,38 @@ export const getQuestions = async (
 
 export const evaluateAnswer = async (question: string, answer: string) => {
   console.log('Evaluating:', question, answer);
-  // TODO: Integrate with LLM for real evaluation
+
   return {
     score: 7,
     feedback: "That's a reasonable approach. Can you elaborate on the trade-offs?",
-    isCorrect: true
+    isCorrect: true,
   };
 };
 
 export const provideHint = async (question: string) => {
   console.log('Providing hint for:', question);
-  // TODO: Integrate with LLM for real hint generation
+
   return {
-    hint: "Consider using a hash map to optimize the lookup time."
+    hint: 'Consider using a hash map to optimize the lookup time.',
   };
 };
 
 export const endRound = async (interviewId: string, roundType: string) => {
   console.log('Ending round:', roundType, 'for interview:', interviewId);
-  // TODO: Update interview state in DB
+
   return {
     message: `Round ${roundType} completed.`,
-    nextRound: "technical"
+    nextRound: 'technical',
   };
 };
 
 export const generateReport = async (interviewId: string) => {
   console.log('Generating report for:', interviewId);
-  // TODO: Aggregate real scores from DB
+
   return {
     totalScore: 85,
-    summary: "Strong technical skills, good communication.",
-    improvementPlan: ["Practice system design", "Review dynamic programming"]
+    summary: 'Strong technical skills, good communication.',
+    improvementPlan: ['Practice system design', 'Review dynamic programming'],
   };
 };
 
@@ -328,14 +330,16 @@ const parseUtterances = (call: any): Utterance[] => {
         typeof m.secondsFromStart === 'number'
           ? m.secondsFromStart
           : typeof m.time === 'number' && startedAtMs
-          ? (m.time - startedAtMs) / 1000
-          : null;
+            ? (m.time - startedAtMs) / 1000
+            : null;
       const durationSeconds =
         typeof m.duration === 'number'
-          ? m.duration > 120 ? m.duration / 1000 : m.duration // heuristic: Vapi duration appears in ms
+          ? m.duration > 120
+            ? m.duration / 1000
+            : m.duration
           : typeof m.endTime === 'number' && typeof m.time === 'number'
-          ? (m.endTime - m.time) / 1000
-          : 0;
+            ? (m.endTime - m.time) / 1000
+            : 0;
       const end = start != null ? start + (durationSeconds || 0) : null;
       if (start == null || end == null) return null;
       return {
@@ -364,7 +368,6 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
     throw new Error('Missing VAPI_API_KEY environment variable');
   }
 
-  // Define the type for VAPI call data
   type VapiCallData = {
     id?: string;
     assistantId?: string;
@@ -379,11 +382,10 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
     endedAt?: string;
   };
 
-  // Retry logic for VAPI API call - call data may not be immediately available
   let callData: VapiCallData | null = null;
 
   const maxRetries = 3;
-  const retryDelay = 2000; // 2 seconds
+  const retryDelay = 2000;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -394,20 +396,22 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
       });
 
       if (!resp.ok) {
-        console.warn(`[saveCallMetadata] VAPI API returned status ${resp.status} on attempt ${attempt}`);
+        console.warn(
+          `[saveCallMetadata] VAPI API returned status ${resp.status} on attempt ${attempt}`,
+        );
         if (attempt < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          await new Promise((resolve) => setTimeout(resolve, retryDelay));
           continue;
         }
         throw new Error(`Failed to fetch call details (status ${resp.status})`);
       }
 
-      callData = await resp.json() as VapiCallData;
+      callData = (await resp.json()) as VapiCallData;
       break;
     } catch (err) {
       console.error(`[saveCallMetadata] Error fetching call data on attempt ${attempt}:`, err);
       if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
       } else {
         throw err;
       }
@@ -418,15 +422,18 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
     throw new Error('Failed to fetch call data after retries');
   }
 
-  const callStartedAt = callData.startedAt ? new Date(callData.startedAt) : interview.startedAt ?? null;
+  const callStartedAt = callData.startedAt
+    ? new Date(callData.startedAt)
+    : (interview.startedAt ?? null);
   const callEndedAt = callData.endedAt ? new Date(callData.endedAt) : null;
   const durationSeconds =
-    callStartedAt && callEndedAt ? Math.max(0, Math.floor((callEndedAt.getTime() - callStartedAt.getTime()) / 1000)) : null;
+    callStartedAt && callEndedAt
+      ? Math.max(0, Math.floor((callEndedAt.getTime() - callStartedAt.getTime()) / 1000))
+      : null;
 
   const utterances = parseUtterances(callData);
   const pauseMetrics = computePauseMetrics(utterances);
 
-  // Update interview with call linkage and timing
   await db.interview.update({
     where: { id: payload.interviewId },
     data: {
@@ -437,12 +444,10 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
     },
   });
 
-  // Avoid duplicating the same call transcript record
   const existing = await db.interviewTranscript.findFirst({
     where: { interviewId: payload.interviewId, callId: payload.callId },
   });
 
-  // Prepare transcript data with averageExpressions
   const transcriptData = {
     type: 'vapi_call',
     callId: callData?.id || payload.callId,
@@ -495,15 +500,18 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
     });
   }
 
-  // Fire-and-forget: trigger analysis automatically after call metadata is saved
-  // This runs async in background - don't await it
   const { generateAnalysis } = await import('./interview.service');
   generateAnalysis(userId, payload.interviewId)
     .then(() => {
-      console.log(`[saveCallMetadata] Auto-analysis completed for interview ${payload.interviewId}`);
+      console.log(
+        `[saveCallMetadata] Auto-analysis completed for interview ${payload.interviewId}`,
+      );
     })
     .catch((err) => {
-      console.error(`[saveCallMetadata] Auto-analysis failed for interview ${payload.interviewId}:`, err);
+      console.error(
+        `[saveCallMetadata] Auto-analysis failed for interview ${payload.interviewId}:`,
+        err,
+      );
     });
 
   return {
@@ -517,4 +525,3 @@ export const saveCallMetadata = async (userId: string, payload: SaveCallMetadata
     averageExpressions: payload.averageExpressions || null,
   };
 };
-

@@ -14,7 +14,7 @@ import {
 export const createSession = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -34,7 +34,7 @@ export const createSession = async (
 export const getSessions = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -53,7 +53,7 @@ export const getSessions = async (
 export const getSession = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -73,7 +73,7 @@ export const getSession = async (
 export const getActiveSession = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -92,7 +92,7 @@ export const getActiveSession = async (
 export const startRound = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -116,7 +116,7 @@ export const startRound = async (
 export const completeRound = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -137,11 +137,7 @@ export const completeRound = async (
   }
 };
 
-export const skipRound = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+export const skipRound = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -164,7 +160,7 @@ export const skipRound = async (
 export const abandonSession = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -184,7 +180,7 @@ export const abandonSession = async (
 export const checkMultiRoundEnabled = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -203,7 +199,7 @@ export const checkMultiRoundEnabled = async (
 export const deleteSession = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;

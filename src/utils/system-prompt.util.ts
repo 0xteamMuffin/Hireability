@@ -6,21 +6,17 @@
 import { RoundType } from '../types/interview-state.types';
 
 interface InterviewerContext {
-  // User context
   targetRole?: string;
   targetCompany?: string;
   experienceLevel?: string;
   resumeSummary?: string;
-  
-  // Round info
+
   roundType: RoundType;
   roundNumber?: number;
   totalRounds?: number;
-  
-  // Interview ID for tool calls
+
   interviewId: string;
-  
-  // Optional customizations
+
   interviewerName?: string;
   companyDescription?: string;
 }
@@ -276,15 +272,21 @@ const getToolInstructions = (roundType: RoundType): string => {
 - **completeInterview**: Call when ending the interview
 `;
 
-  const codingTools = roundType === RoundType.CODING ? `
+  const codingTools =
+    roundType === RoundType.CODING
+      ? `
 ### Coding Round Tools:
 - **presentCodingProblem**: Present the coding challenge to the candidate
 - **checkCodeProgress**: See how their code is progressing
 - **executeCode**: Run their code against test cases
 - **getCodingHint**: Provide a hint if they're stuck
-` : '';
+`
+      : '';
 
-  return commonTools + codingTools + `
+  return (
+    commonTools +
+    codingTools +
+    `
 
 ### Tool Call Pattern:
 1. **Start**: Call initializeInterview with the interview context
@@ -294,7 +296,8 @@ const getToolInstructions = (roundType: RoundType): string => {
 5. **Evaluate**: Call evaluateAnswer with their response
 6. **React**: Respond based on evaluation (acknowledge, probe, or move on)
 7. **Repeat**: Go back to step 2 until shouldWrapUp returns true
-8. **End**: Call completeInterview and give closing remarks`;
+8. **End**: Call completeInterview and give closing remarks`
+  );
 };
 
 /**
@@ -356,11 +359,16 @@ export const buildFirstMessage = (context: InterviewerContext): string => {
 
 const getRoundDescription = (roundType: RoundType): string => {
   const descriptions: Record<RoundType, string> = {
-    [RoundType.BEHAVIORAL]: "In this round, I'd like to learn more about your experiences and how you've handled different situations in your career.",
-    [RoundType.TECHNICAL]: "Today we'll be discussing some technical topics to understand your expertise and problem-solving approach.",
-    [RoundType.CODING]: "In this round, I'll give you a coding problem to work through. Feel free to think out loud and ask questions as you go.",
-    [RoundType.SYSTEM_DESIGN]: "Today we'll work through a system design problem together. I'm interested in seeing how you approach architecture and trade-offs.",
-    [RoundType.HR]: "I'd love to learn more about you, your career goals, and what you're looking for in your next role.",
+    [RoundType.BEHAVIORAL]:
+      "In this round, I'd like to learn more about your experiences and how you've handled different situations in your career.",
+    [RoundType.TECHNICAL]:
+      "Today we'll be discussing some technical topics to understand your expertise and problem-solving approach.",
+    [RoundType.CODING]:
+      "In this round, I'll give you a coding problem to work through. Feel free to think out loud and ask questions as you go.",
+    [RoundType.SYSTEM_DESIGN]:
+      "Today we'll work through a system design problem together. I'm interested in seeing how you approach architecture and trade-offs.",
+    [RoundType.HR]:
+      "I'd love to learn more about you, your career goals, and what you're looking for in your next role.",
   };
 
   return descriptions[roundType] || descriptions[RoundType.BEHAVIORAL];

@@ -1,16 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import * as settingsService from '../services/settings.service';
-import { 
-  UpdateUserInput, 
-  UpdatePasswordInput, 
-  UpdateSettingsInput 
-} from '../types/settings.types';
+import { UpdateUserInput, UpdatePasswordInput, UpdateSettingsInput } from '../types/settings.types';
 import '../types/auth.types';
 
 export const getUserDetails = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -35,7 +31,7 @@ export const getUserDetails = async (
 export const updateUserDetails = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -61,7 +57,7 @@ export const updateUserDetails = async (
 export const updatePassword = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -73,17 +69,17 @@ export const updatePassword = async (
     const { currentPassword, newPassword } = req.body as UpdatePasswordInput;
 
     if (!currentPassword || !newPassword) {
-      res.status(400).json({ 
-        success: false, 
-        message: 'Current and new password are required' 
+      res.status(400).json({
+        success: false,
+        message: 'Current and new password are required',
       });
       return;
     }
 
     if (newPassword.length < 6) {
-      res.status(400).json({ 
-        success: false, 
-        message: 'New password must be at least 6 characters' 
+      res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters',
       });
       return;
     }
@@ -102,7 +98,7 @@ export const updatePassword = async (
 export const getSettings = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -121,7 +117,7 @@ export const getSettings = async (
 export const updateSettings = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -141,7 +137,7 @@ export const updateSettings = async (
 export const deleteAccount = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;

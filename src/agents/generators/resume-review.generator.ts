@@ -1,8 +1,8 @@
-import genai, { geminiConfig } from "../../utils/gemini.util";
-import dotenv from "dotenv";
+import genai, { geminiConfig } from '../../utils/gemini.util';
+import dotenv from 'dotenv';
 dotenv.config();
 
-const MODEL = process.env.MODEL_NAME || "gemini-flash-latest";
+const MODEL = process.env.MODEL_NAME || 'gemini-flash-latest';
 
 export class ResumeReviewGenerator {
   async generate(resumeData: any): Promise<string> {
@@ -41,20 +41,20 @@ Resume Data: ${JSON.stringify(resumeData)}
         model: MODEL,
         config: {
           ...geminiConfig,
-          responseMimeType: "text/plain",
+          responseMimeType: 'text/plain',
         },
         contents: [
           {
-            role: "user",
+            role: 'user',
             parts: [{ text: prompt }],
           },
         ],
       });
 
-      return response.text || "";
+      return response.text || '';
     } catch (error) {
-      console.error("Resume review generation failed:", error);
-      throw new Error("Failed to generate resume review");
+      console.error('Resume review generation failed:', error);
+      throw new Error('Failed to generate resume review');
     }
   }
 }

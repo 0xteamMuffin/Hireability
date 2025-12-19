@@ -7,4 +7,3 @@ const router = Router();
 router.post('/', authMiddleware, transcriptController.saveTranscript);
 
 export default router;
-

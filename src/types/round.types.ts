@@ -34,8 +34,8 @@ export interface RoundConfig {
   type: RoundType;
   order: number;
   isRequired: boolean;
-  prerequisites?: RoundType[];  // Rounds that must be completed first
-  estimatedDuration?: number;   // In minutes
+  prerequisites?: RoundType[];
+  estimatedDuration?: number;
 }
 
 export const DEFAULT_ROUND_CONFIGS: RoundConfig[] = [
@@ -84,48 +84,48 @@ export const ROUND_ANALYSIS_WEIGHTS: Record<RoundType, Record<string, number>> =
   [RoundType.BEHAVIORAL]: {
     communication: 0.25,
     experience: 0.25,
-    professional: 0.20,
+    professional: 0.2,
     roleKnowledge: 0.15,
     problemSolving: 0.15,
-    technical: 0.00,
+    technical: 0.0,
   },
   [RoundType.TECHNICAL]: {
-    technical: 0.30,
+    technical: 0.3,
     problemSolving: 0.25,
-    roleKnowledge: 0.20,
+    roleKnowledge: 0.2,
     communication: 0.15,
-    experience: 0.10,
-    professional: 0.00,
+    experience: 0.1,
+    professional: 0.0,
   },
   [RoundType.CODING]: {
     problemSolving: 0.35,
-    technical: 0.30,
-    communication: 0.20,
-    experience: 0.10,
+    technical: 0.3,
+    communication: 0.2,
+    experience: 0.1,
     professional: 0.05,
-    roleKnowledge: 0.00,
+    roleKnowledge: 0.0,
   },
   [RoundType.SYSTEM_DESIGN]: {
-    technical: 0.30,
-    problemSolving: 0.30,
-    roleKnowledge: 0.20,
+    technical: 0.3,
+    problemSolving: 0.3,
+    roleKnowledge: 0.2,
     communication: 0.15,
     experience: 0.05,
-    professional: 0.00,
+    professional: 0.0,
   },
   [RoundType.HR]: {
-    communication: 0.30,
+    communication: 0.3,
     professional: 0.25,
-    experience: 0.20,
+    experience: 0.2,
     roleKnowledge: 0.15,
-    problemSolving: 0.10,
-    technical: 0.00,
+    problemSolving: 0.1,
+    technical: 0.0,
   },
 };
 
 export interface CreateSessionRequest {
   targetId?: string;
-  rounds?: RoundType[];  // Custom round selection, uses defaults if not provided
+  rounds?: RoundType[];
 }
 
 export interface SessionResponse {
@@ -196,7 +196,6 @@ export interface TestResult {
   error?: string;
 }
 
-// Round display info for frontend
 export interface RoundDisplayInfo {
   type: RoundType;
   title: string;

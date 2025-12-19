@@ -23,27 +23,77 @@ import {
   CodeExecutionResult,
 } from '../types/interview-state.types';
 
-// In-memory state store
 const stateStore = new Map<string, InterviewState>();
 
-// Persistence interval (save to Postgres every N seconds)
-const PERSISTENCE_INTERVAL_MS = 30000; // 30 seconds
+const PERSISTENCE_INTERVAL_MS = 30000;
 const persistenceTimers = new Map<string, NodeJS.Timeout>();
 
-// Default topic coverage template
 const createDefaultTopicCoverage = (): Record<QuestionCategory, TopicCoverage> => ({
-  [QuestionCategory.INTRODUCTION]: { category: QuestionCategory.INTRODUCTION, questionsAsked: 0, averageScore: 0, covered: false, depth: 'shallow' },
-  [QuestionCategory.EXPERIENCE]: { category: QuestionCategory.EXPERIENCE, questionsAsked: 0, averageScore: 0, covered: false, depth: 'shallow' },
-  [QuestionCategory.BEHAVIORAL]: { category: QuestionCategory.BEHAVIORAL, questionsAsked: 0, averageScore: 0, covered: false, depth: 'shallow' },
-  [QuestionCategory.TECHNICAL_CONCEPT]: { category: QuestionCategory.TECHNICAL_CONCEPT, questionsAsked: 0, averageScore: 0, covered: false, depth: 'shallow' },
-  [QuestionCategory.PROBLEM_SOLVING]: { category: QuestionCategory.PROBLEM_SOLVING, questionsAsked: 0, averageScore: 0, covered: false, depth: 'shallow' },
-  [QuestionCategory.SYSTEM_DESIGN]: { category: QuestionCategory.SYSTEM_DESIGN, questionsAsked: 0, averageScore: 0, covered: false, depth: 'shallow' },
-  [QuestionCategory.CODING]: { category: QuestionCategory.CODING, questionsAsked: 0, averageScore: 0, covered: false, depth: 'shallow' },
-  [QuestionCategory.CULTURE_FIT]: { category: QuestionCategory.CULTURE_FIT, questionsAsked: 0, averageScore: 0, covered: false, depth: 'shallow' },
-  [QuestionCategory.CLOSING]: { category: QuestionCategory.CLOSING, questionsAsked: 0, averageScore: 0, covered: false, depth: 'shallow' },
+  [QuestionCategory.INTRODUCTION]: {
+    category: QuestionCategory.INTRODUCTION,
+    questionsAsked: 0,
+    averageScore: 0,
+    covered: false,
+    depth: 'shallow',
+  },
+  [QuestionCategory.EXPERIENCE]: {
+    category: QuestionCategory.EXPERIENCE,
+    questionsAsked: 0,
+    averageScore: 0,
+    covered: false,
+    depth: 'shallow',
+  },
+  [QuestionCategory.BEHAVIORAL]: {
+    category: QuestionCategory.BEHAVIORAL,
+    questionsAsked: 0,
+    averageScore: 0,
+    covered: false,
+    depth: 'shallow',
+  },
+  [QuestionCategory.TECHNICAL_CONCEPT]: {
+    category: QuestionCategory.TECHNICAL_CONCEPT,
+    questionsAsked: 0,
+    averageScore: 0,
+    covered: false,
+    depth: 'shallow',
+  },
+  [QuestionCategory.PROBLEM_SOLVING]: {
+    category: QuestionCategory.PROBLEM_SOLVING,
+    questionsAsked: 0,
+    averageScore: 0,
+    covered: false,
+    depth: 'shallow',
+  },
+  [QuestionCategory.SYSTEM_DESIGN]: {
+    category: QuestionCategory.SYSTEM_DESIGN,
+    questionsAsked: 0,
+    averageScore: 0,
+    covered: false,
+    depth: 'shallow',
+  },
+  [QuestionCategory.CODING]: {
+    category: QuestionCategory.CODING,
+    questionsAsked: 0,
+    averageScore: 0,
+    covered: false,
+    depth: 'shallow',
+  },
+  [QuestionCategory.CULTURE_FIT]: {
+    category: QuestionCategory.CULTURE_FIT,
+    questionsAsked: 0,
+    averageScore: 0,
+    covered: false,
+    depth: 'shallow',
+  },
+  [QuestionCategory.CLOSING]: {
+    category: QuestionCategory.CLOSING,
+    questionsAsked: 0,
+    averageScore: 0,
+    covered: false,
+    depth: 'shallow',
+  },
 });
 
-// Default performance metrics
 const createDefaultPerformance = (): PerformanceMetrics => ({
   totalQuestions: 0,
   answeredQuestions: 0,
@@ -83,7 +133,8 @@ export const createInterviewState = async (params: {
     roundOrder: params.roundOrder || 1,
     startedAt: now,
     lastActivityAt: now,
-    estimatedDurationMinutes: params.estimatedDurationMinutes || getDefaultDuration(params.roundType),
+    estimatedDurationMinutes:
+      params.estimatedDurationMinutes || getDefaultDuration(params.roundType),
     elapsedSeconds: 0,
     targetRole: params.targetRole,
     targetCompany: params.targetCompany,
@@ -101,10 +152,8 @@ export const createInterviewState = async (params: {
     updatedAt: now,
   };
 
-  // Store in memory
   stateStore.set(params.interviewId, state);
 
-  // Start periodic persistence
   startPersistenceTimer(params.interviewId);
 
   return state;
@@ -136,7 +185,7 @@ export const setPhase = (interviewId: string, phase: InterviewPhase): InterviewS
  */
 export const recordQuestion = (
   interviewId: string,
-  payload: AskQuestionPayload
+  payload: AskQuestionPayload,
 ): QuestionState | null => {
   const state = stateStore.get(interviewId);
   if (!state) return null;
@@ -158,7 +207,6 @@ export const recordQuestion = (
   state.lastActivityAt = new Date();
   state.updatedAt = new Date();
 
-  // Update topic coverage
   const topic = state.topicCoverage[payload.category];
   topic.questionsAsked++;
   topic.covered = true;
@@ -168,7 +216,6 @@ export const recordQuestion = (
     topic.depth = 'moderate';
   }
 
-  // Update performance metrics
   state.performance.totalQuestions++;
 
   return question;
@@ -179,7 +226,7 @@ export const recordQuestion = (
  */
 export const recordAnswer = (
   interviewId: string,
-  payload: RecordAnswerPayload
+  payload: RecordAnswerPayload,
 ): QuestionState | null => {
   const state = stateStore.get(interviewId);
   if (!state) return null;
@@ -194,19 +241,16 @@ export const recordAnswer = (
   question.feedback = payload.feedback;
   question.followUpAsked = payload.suggestFollowUp;
   question.timeSpentSeconds = Math.floor(
-    (answeredAt.getTime() - question.askedAt.getTime()) / 1000
+    (answeredAt.getTime() - question.askedAt.getTime()) / 1000,
   );
 
   state.lastActivityAt = answeredAt;
   state.updatedAt = answeredAt;
 
-  // Update performance metrics
   updatePerformanceMetrics(state, question);
 
-  // Update topic coverage score
   updateTopicCoverageScore(state, question);
 
-  // Check if should wrap up
   checkWrapUpConditions(state);
 
   return question;
@@ -220,7 +264,6 @@ const updatePerformanceMetrics = (state: InterviewState, question: QuestionState
 
   perf.answeredQuestions++;
 
-  // Update recent scores (keep last 5)
   if (question.score !== undefined) {
     perf.recentScores.push(question.score);
     if (perf.recentScores.length > 5) {
@@ -228,18 +271,18 @@ const updatePerformanceMetrics = (state: InterviewState, question: QuestionState
     }
   }
 
-  // Calculate average score
   const totalScore = state.questions
     .filter((q) => q.score !== undefined)
     .reduce((sum, q) => sum + (q.score || 0), 0);
   perf.averageScore = perf.answeredQuestions > 0 ? totalScore / perf.answeredQuestions : 0;
 
-  // Determine score trend
   if (perf.recentScores.length >= 3) {
     const recent = perf.recentScores.slice(-3);
     const avg = recent.reduce((a, b) => a + b, 0) / recent.length;
-    const prevAvg = perf.recentScores.slice(0, -3).reduce((a, b) => a + b, 0) / Math.max(1, perf.recentScores.length - 3);
-    
+    const prevAvg =
+      perf.recentScores.slice(0, -3).reduce((a, b) => a + b, 0) /
+      Math.max(1, perf.recentScores.length - 3);
+
     if (avg > prevAvg + 1) {
       perf.scoreTrend = 'improving';
     } else if (avg < prevAvg - 1) {
@@ -249,10 +292,8 @@ const updatePerformanceMetrics = (state: InterviewState, question: QuestionState
     }
   }
 
-  // Update strong/weak areas
   updateStrengthsAndWeaknesses(state);
 
-  // Adjust suggested difficulty
   adjustSuggestedDifficulty(state);
 };
 
@@ -261,11 +302,11 @@ const updatePerformanceMetrics = (state: InterviewState, question: QuestionState
  */
 const updateTopicCoverageScore = (state: InterviewState, question: QuestionState): void => {
   const topic = state.topicCoverage[question.category];
-  
+
   const questionsInCategory = state.questions.filter(
-    (q) => q.category === question.category && q.score !== undefined
+    (q) => q.category === question.category && q.score !== undefined,
   );
-  
+
   const totalScore = questionsInCategory.reduce((sum, q) => sum + (q.score || 0), 0);
   topic.averageScore = questionsInCategory.length > 0 ? totalScore / questionsInCategory.length : 0;
 };
@@ -277,19 +318,18 @@ const updateStrengthsAndWeaknesses = (state: InterviewState): void => {
   const perf = state.performance;
   const topicsWithScores = Object.entries(state.topicCoverage)
     .filter(([_, coverage]) => coverage.questionsAsked > 0 && coverage.averageScore > 0)
-    .map(([category, coverage]) => ({ category: category as QuestionCategory, score: coverage.averageScore }));
+    .map(([category, coverage]) => ({
+      category: category as QuestionCategory,
+      score: coverage.averageScore,
+    }));
 
   if (topicsWithScores.length === 0) return;
 
   const avgScore = topicsWithScores.reduce((sum, t) => sum + t.score, 0) / topicsWithScores.length;
 
-  perf.strongAreas = topicsWithScores
-    .filter((t) => t.score >= avgScore + 1)
-    .map((t) => t.category);
+  perf.strongAreas = topicsWithScores.filter((t) => t.score >= avgScore + 1).map((t) => t.category);
 
-  perf.weakAreas = topicsWithScores
-    .filter((t) => t.score <= avgScore - 1)
-    .map((t) => t.category);
+  perf.weakAreas = topicsWithScores.filter((t) => t.score <= avgScore - 1).map((t) => t.category);
 };
 
 /**
@@ -318,13 +358,11 @@ const checkWrapUpConditions = (state: InterviewState): void => {
   const elapsedMinutes = state.elapsedSeconds / 60;
   const questionsAsked = state.performance.totalQuestions;
 
-  // Wrap up if approaching time limit (90% of estimated duration)
   if (elapsedMinutes >= state.estimatedDurationMinutes * 0.9) {
     state.shouldWrapUp = true;
     return;
   }
 
-  // Wrap up if sufficient questions asked based on round type
   const minQuestions = getMinQuestionsForRound(state.roundType);
   if (questionsAsked >= minQuestions && state.performance.averageScore >= 5) {
     state.shouldWrapUp = true;
@@ -336,7 +374,7 @@ const checkWrapUpConditions = (state: InterviewState): void => {
  */
 export const updateCandidateSignals = (
   interviewId: string,
-  signals: Partial<CandidateSignals>
+  signals: Partial<CandidateSignals>,
 ): InterviewState | null => {
   const state = stateStore.get(interviewId);
   if (!state) return null;
@@ -344,7 +382,6 @@ export const updateCandidateSignals = (
   state.candidateSignals = { ...state.candidateSignals, ...signals };
   state.lastActivityAt = new Date();
 
-  // Update confidence level based on signals
   updateConfidenceLevel(state);
 
   return state;
@@ -357,11 +394,11 @@ const updateConfidenceLevel = (state: InterviewState): void => {
   const signals = state.candidateSignals;
   const perf = state.performance;
 
-  // Analyze expressions
   const avgExpressions = signals.averageExpressions;
   if (avgExpressions) {
     const positiveScore = (avgExpressions.happy || 0) + (avgExpressions.neutral || 0);
-    const negativeScore = (avgExpressions.fearful || 0) + (avgExpressions.sad || 0) + (avgExpressions.angry || 0);
+    const negativeScore =
+      (avgExpressions.fearful || 0) + (avgExpressions.sad || 0) + (avgExpressions.angry || 0);
 
     if (positiveScore > 0.6 && negativeScore < 0.2) {
       perf.confidenceLevel = 'high';
@@ -372,7 +409,6 @@ const updateConfidenceLevel = (state: InterviewState): void => {
     }
   }
 
-  // Check for long pauses (indicates low confidence)
   if (signals.longPauseDetected) {
     perf.confidenceLevel = 'low';
   }
@@ -392,7 +428,7 @@ export const initializeCodingState = (
     hints: string[];
     testCases: number;
   },
-  language: string
+  language: string,
 ): CodingState | null => {
   const state = stateStore.get(interviewId);
   if (!state) return null;
@@ -427,7 +463,7 @@ export const initializeCodingState = (
  */
 export const updateCodingState = (
   interviewId: string,
-  payload: UpdateCodingStatePayload
+  payload: UpdateCodingStatePayload,
 ): CodingState | null => {
   const state = stateStore.get(interviewId);
   if (!state || !state.codingState) return null;
@@ -448,17 +484,13 @@ export const updateCodingState = (
 
   if (payload.executionResult) {
     coding.lastExecutionResult = payload.executionResult;
-    
-    // Count passed tests
+
     if (payload.executionResult.testResults) {
       coding.testCasesPassed = payload.executionResult.testResults.filter((t) => t.passed).length;
     }
   }
 
-  // Update time spent
-  coding.timeSpentSeconds = Math.floor(
-    (new Date().getTime() - coding.startedAt.getTime()) / 1000
-  );
+  coding.timeSpentSeconds = Math.floor((new Date().getTime() - coding.startedAt.getTime()) / 1000);
 
   state.lastActivityAt = new Date();
   state.updatedAt = new Date();
@@ -473,7 +505,7 @@ export const recordCodeSubmission = (
   interviewId: string,
   code: string,
   language: string,
-  result: CodeExecutionResult
+  result: CodeExecutionResult,
 ): CodingState | null => {
   const state = stateStore.get(interviewId);
   if (!state || !state.codingState) return null;
@@ -541,9 +573,7 @@ export const updateElapsedTime = (interviewId: string): void => {
   const state = stateStore.get(interviewId);
   if (!state) return;
 
-  state.elapsedSeconds = Math.floor(
-    (new Date().getTime() - state.startedAt.getTime()) / 1000
-  );
+  state.elapsedSeconds = Math.floor((new Date().getTime() - state.startedAt.getTime()) / 1000);
 };
 
 /**
@@ -557,10 +587,8 @@ export const completeInterview = async (interviewId: string): Promise<InterviewS
   state.updatedAt = new Date();
   updateElapsedTime(interviewId);
 
-  // Persist final state
   await persistState(interviewId);
 
-  // Stop persistence timer
   stopPersistenceTimer(interviewId);
 
   return state;
@@ -573,7 +601,6 @@ export const persistState = async (interviewId: string): Promise<void> => {
   const state = stateStore.get(interviewId);
   if (!state) return;
 
-  // Use the interviewId parameter, not state.interviewId (which might be undefined in edge cases)
   const dbInterviewId = interviewId || state.interviewId;
   if (!dbInterviewId) {
     console.warn(`[InterviewState] Cannot persist state - no valid interviewId`);
@@ -583,11 +610,9 @@ export const persistState = async (interviewId: string): Promise<void> => {
   const db = prisma as any;
 
   try {
-    // Store state as JSON in interview record
     await db.interview.update({
       where: { id: dbInterviewId },
       data: {
-        // Store interview state in a JSON column (may need to add this to schema)
         contextPrompt: JSON.stringify({
           interviewState: {
             phase: state.phase,
@@ -603,7 +628,10 @@ export const persistState = async (interviewId: string): Promise<void> => {
     state.persistedAt = new Date();
     console.log(`[InterviewState] Persisted state for interview ${dbInterviewId}`);
   } catch (error) {
-    console.error(`[InterviewState] Failed to persist state for interview ${dbInterviewId}:`, error);
+    console.error(
+      `[InterviewState] Failed to persist state for interview ${dbInterviewId}:`,
+      error,
+    );
   }
 };
 
@@ -611,13 +639,11 @@ export const persistState = async (interviewId: string): Promise<void> => {
  * Load state from Postgres (for recovery)
  */
 export const loadState = async (interviewId: string): Promise<InterviewState | null> => {
-  // Check memory first
   const memoryState = stateStore.get(interviewId);
   if (memoryState) return memoryState;
 
-  // Try loading from DB
   const db = prisma as any;
-  
+
   try {
     const interview = await db.interview.findUnique({
       where: { id: interviewId },
@@ -626,18 +652,14 @@ export const loadState = async (interviewId: string): Promise<InterviewState | n
 
     if (!interview) return null;
 
-    // Parse stored state if exists
     let storedState: any = null;
     if (interview.contextPrompt) {
       try {
         const parsed = JSON.parse(interview.contextPrompt);
         storedState = parsed.interviewState;
-      } catch {
-        // Not JSON or doesn't have state
-      }
+      } catch {}
     }
 
-    // Recreate state
     const state = await createInterviewState({
       interviewId,
       userId: interview.userId,
@@ -649,7 +671,6 @@ export const loadState = async (interviewId: string): Promise<InterviewState | n
       experienceLevel: interview.user?.profile?.level,
     });
 
-    // Restore stored state if available
     if (storedState) {
       state.phase = storedState.phase || state.phase;
       state.topicCoverage = storedState.topicCoverage || state.topicCoverage;
@@ -679,7 +700,6 @@ export const getActiveInterviews = (): string[] => {
   return Array.from(stateStore.keys());
 };
 
-// Helper functions
 const getDefaultDuration = (roundType: RoundType): number => {
   const durations: Record<RoundType, number> = {
     [RoundType.BEHAVIORAL]: 20,
@@ -695,7 +715,7 @@ const getMinQuestionsForRound = (roundType: RoundType): number => {
   const minQuestions: Record<RoundType, number> = {
     [RoundType.BEHAVIORAL]: 4,
     [RoundType.TECHNICAL]: 5,
-    [RoundType.CODING]: 1, // Coding is problem-based
+    [RoundType.CODING]: 1,
     [RoundType.SYSTEM_DESIGN]: 2,
     [RoundType.HR]: 3,
   };

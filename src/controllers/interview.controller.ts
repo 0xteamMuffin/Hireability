@@ -5,7 +5,7 @@ import { StartInterviewRequest, SaveAnalysisRequest } from '../types/interview.t
 export const startInterview = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -25,7 +25,7 @@ export const startInterview = async (
 export const saveAnalysis = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -44,7 +44,10 @@ export const saveAnalysis = async (
       const saved = await interviewService.saveAnalysis(userId, body);
       res.json({ success: true, data: saved });
     } catch (err) {
-      res.status(400).json({ success: false, message: err instanceof Error ? err.message : 'Failed to save analysis' });
+      res.status(400).json({
+        success: false,
+        message: err instanceof Error ? err.message : 'Failed to save analysis',
+      });
     }
   } catch (error) {
     next(error);
@@ -54,7 +57,7 @@ export const saveAnalysis = async (
 export const getInterviews = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -73,7 +76,7 @@ export const getInterviews = async (
 export const getInterviewById = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -92,7 +95,10 @@ export const getInterviewById = async (
       const interview = await interviewService.getInterviewById(userId, interviewId);
       res.json({ success: true, data: interview });
     } catch (err) {
-      res.status(404).json({ success: false, message: err instanceof Error ? err.message : 'Interview not found' });
+      res.status(404).json({
+        success: false,
+        message: err instanceof Error ? err.message : 'Interview not found',
+      });
     }
   } catch (error) {
     next(error);
@@ -102,7 +108,7 @@ export const getInterviewById = async (
 export const analyzeInterview = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -124,11 +130,7 @@ export const analyzeInterview = async (
   }
 };
 
-export const getStats = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+export const getStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -146,7 +148,7 @@ export const getStats = async (
 export const deleteInterview = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -167,5 +169,3 @@ export const deleteInterview = async (
     next(error);
   }
 };
-
-

@@ -18,25 +18,20 @@ const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 2000;
 
 interface EvaluationContext {
-  // Question info
   question: string;
   category: QuestionCategory;
   difficulty: Difficulty;
-  
-  // Answer
+
   answer: string;
-  
-  // Candidate context
+
   targetRole?: string;
   targetCompany?: string;
   experienceLevel?: string;
-  
-  // Interview context
+
   roundType: RoundType;
   questionsAsked: number;
   averageScore: number;
-  
-  // For coding answers
+
   codeSubmission?: string;
   codeLanguage?: string;
   testResults?: { passed: number; total: number };
@@ -47,7 +42,7 @@ export class AnswerEvaluatorAgent {
    * Sleep helper for retry delays
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -56,7 +51,11 @@ export class AnswerEvaluatorAgent {
   private isRateLimitError(error: unknown): boolean {
     if (error && typeof error === 'object') {
       const err = error as { status?: number; message?: string };
-      return err.status === 429 || (err.message?.includes('429') ?? false) || (err.message?.includes('quota') ?? false);
+      return (
+        err.status === 429 ||
+        (err.message?.includes('429') ?? false) ||
+        (err.message?.includes('quota') ?? false)
+      );
     }
     return false;
   }
@@ -98,14 +97,16 @@ export class AnswerEvaluatorAgent {
         };
       } catch (error) {
         lastError = error;
-        
+
         if (this.isRateLimitError(error) && attempt < MAX_RETRIES - 1) {
           const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-          console.log(`[AnswerEvaluator] Rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          console.log(
+            `[AnswerEvaluator] Rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`,
+          );
           await this.sleep(delay);
           continue;
         }
-        
+
         break;
       }
     }
@@ -120,7 +121,7 @@ export class AnswerEvaluatorAgent {
   async quickEvaluate(
     question: string,
     answer: string,
-    category: QuestionCategory
+    category: QuestionCategory,
   ): Promise<{ score: number; brief: string; needsFollowUp: boolean }> {
     const prompt = `Quickly evaluate this interview answer.
 
@@ -196,21 +197,22 @@ Respond with JSON:
         };
       } catch (error) {
         lastError = error;
-        
+
         if (this.isRateLimitError(error) && attempt < MAX_RETRIES - 1) {
           const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-          console.log(`[AnswerEvaluator] Code eval rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          console.log(
+            `[AnswerEvaluator] Code eval rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`,
+          );
           await this.sleep(delay);
           continue;
         }
-        
+
         break;
       }
     }
 
     console.error('[AnswerEvaluator] Code evaluation failed after retries:', lastError);
-    
-    // Fallback based on test results
+
     const passRate = context.testResults.passed / context.testResults.total;
     return {
       score: Math.round(passRate * 10),
@@ -248,13 +250,17 @@ ${difficultyExpectations}
 **CANDIDATE'S ANSWER:**
 ${context.answer}
 
-${context.codeSubmission ? `
+${
+  context.codeSubmission
+    ? `
 **CODE SUBMITTED:**
 \`\`\`${context.codeLanguage || 'code'}
 ${context.codeSubmission}
 \`\`\`
 ${context.testResults ? `Test Results: ${context.testResults.passed}/${context.testResults.total} passed` : ''}
-` : ''}
+`
+    : ''
+}
 
 **EVALUATION CRITERIA:**
 1. **Relevance** - Does the answer address the question?
@@ -336,28 +342,28 @@ ${context.executionOutput ? `- Output: ${context.executionOutput}` : ''}
     const guidelines: Record<QuestionCategory, string> = {
       [QuestionCategory.INTRODUCTION]: `
 Evaluate: Self-presentation, communication clarity, relevance to role`,
-      
+
       [QuestionCategory.EXPERIENCE]: `
 Evaluate: Specific examples, impact described, relevant skills highlighted`,
-      
+
       [QuestionCategory.BEHAVIORAL]: `
 Evaluate: STAR method usage (Situation, Task, Action, Result), self-awareness, learning`,
-      
+
       [QuestionCategory.TECHNICAL_CONCEPT]: `
 Evaluate: Technical accuracy, depth of understanding, ability to explain clearly`,
-      
+
       [QuestionCategory.PROBLEM_SOLVING]: `
 Evaluate: Structured approach, consideration of alternatives, trade-off analysis`,
-      
+
       [QuestionCategory.SYSTEM_DESIGN]: `
 Evaluate: Requirements clarification, scalability considerations, component design`,
-      
+
       [QuestionCategory.CODING]: `
 Evaluate: Algorithm choice, code quality, complexity analysis, edge cases`,
-      
+
       [QuestionCategory.CULTURE_FIT]: `
 Evaluate: Values alignment, team collaboration, growth mindset`,
-      
+
       [QuestionCategory.CLOSING]: `
 Evaluate: Thoughtful questions, genuine interest, professionalism`,
     };
@@ -369,10 +375,10 @@ Evaluate: Thoughtful questions, genuine interest, professionalism`,
     const expectations: Record<Difficulty, string> = {
       [Difficulty.EASY]: `
 Expected: Basic understanding, straightforward answer, fundamental knowledge`,
-      
+
       [Difficulty.MEDIUM]: `
 Expected: Solid understanding, some depth, consideration of trade-offs`,
-      
+
       [Difficulty.HARD]: `
 Expected: Expert-level insight, nuanced analysis, creative problem-solving`,
     };
@@ -386,9 +392,7 @@ Expected: Expert-level insight, nuanced analysis, creative problem-solving`,
     return Math.max(1, Math.min(10, Math.round(num)));
   }
 
-  private mapMastery(
-    mastery: string
-  ): 'novice' | 'intermediate' | 'proficient' | 'expert' {
+  private mapMastery(mastery: string): 'novice' | 'intermediate' | 'proficient' | 'expert' {
     const normalized = mastery?.toLowerCase();
     if (['expert', 'advanced'].includes(normalized)) return 'expert';
     if (['proficient', 'skilled'].includes(normalized)) return 'proficient';
@@ -397,14 +401,12 @@ Expected: Expert-level insight, nuanced analysis, creative problem-solving`,
   }
 
   private getFallbackEvaluation(context: EvaluationContext): AnswerEvaluationResponse {
-    // Basic heuristic evaluation with more context-aware feedback
     const answerLength = context.answer?.length || 0;
     let score = 5;
     let feedback = 'Thank you for your answer.';
     const strengths: string[] = [];
     const improvements: string[] = [];
 
-    // Score based on answer length
     if (answerLength < 50) {
       score = 4;
       feedback = 'I appreciate your response. Could you elaborate a bit more on that?';
@@ -414,7 +416,7 @@ Expected: Expert-level insight, nuanced analysis, creative problem-solving`,
       feedback = 'Thank you for that answer. Let me note that down.';
     } else if (answerLength < 500) {
       score = 6;
-      feedback = 'Good answer with solid detail. I\'ve noted that.';
+      feedback = "Good answer with solid detail. I've noted that.";
       strengths.push('Provided a detailed response');
     } else {
       score = 7;
@@ -422,11 +424,10 @@ Expected: Expert-level insight, nuanced analysis, creative problem-solving`,
       strengths.push('Thorough and detailed response');
     }
 
-    // Category-specific feedback additions
     const categoryFeedback: Record<QuestionCategory, string> = {
       [QuestionCategory.INTRODUCTION]: 'Good introduction.',
       [QuestionCategory.EXPERIENCE]: 'Thanks for sharing that experience.',
-      [QuestionCategory.BEHAVIORAL]: 'That\'s a helpful example to understand your approach.',
+      [QuestionCategory.BEHAVIORAL]: "That's a helpful example to understand your approach.",
       [QuestionCategory.TECHNICAL_CONCEPT]: 'Thanks for explaining that concept.',
       [QuestionCategory.PROBLEM_SOLVING]: 'Interesting approach to the problem.',
       [QuestionCategory.SYSTEM_DESIGN]: 'Good thinking about the design considerations.',
@@ -450,5 +451,4 @@ Expected: Expert-level insight, nuanced analysis, creative problem-solving`,
   }
 }
 
-// Export singleton instance
 export const answerEvaluator = new AnswerEvaluatorAgent();

@@ -6,7 +6,7 @@ import '../types/auth.types';
 export const getTargets = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -25,7 +25,7 @@ export const getTargets = async (
 export const getTargetById = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -52,7 +52,7 @@ export const getTargetById = async (
 export const createTarget = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -64,9 +64,9 @@ export const createTarget = async (
     const { companyName, role, companyEmail, websiteLink } = req.body as CreateTargetInput;
 
     if (!companyName || !role) {
-      res.status(400).json({ 
-        success: false, 
-        message: 'Company name and role are required' 
+      res.status(400).json({
+        success: false,
+        message: 'Company name and role are required',
       });
       return;
     }
@@ -87,7 +87,7 @@ export const createTarget = async (
 export const updateTarget = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
@@ -115,7 +115,7 @@ export const updateTarget = async (
 export const deleteTarget = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const userId = req.user?.id;

@@ -1,5 +1,9 @@
 import { prisma } from '../utils/prisma.util';
-import { StartInterviewRequest, SaveAnalysisRequest, AnalysisResult } from '../types/interview.types';
+import {
+  StartInterviewRequest,
+  SaveAnalysisRequest,
+  AnalysisResult,
+} from '../types/interview.types';
 import genai, { geminiConfig } from '../utils/gemini.util';
 import { SaveTranscriptRequest } from '../types/transcript.types';
 import { FeedbackGeneratorAgent } from '../agents/generators/feedback.generator';
@@ -7,7 +11,7 @@ import { PauseMetrics } from '../types/vapi.types';
 import { RoundType, ROUND_ANALYSIS_WEIGHTS } from '../types/round.types';
 
 export const getInterviews = async (userId: string) => {
-  const db = prisma as any; // cast until Prisma types are regenerated
+  const db = prisma as any;
 
   return db.interview.findMany({
     where: { userId },
@@ -23,7 +27,7 @@ export const getInterviews = async (userId: string) => {
 };
 
 export const getInterviewById = async (userId: string, interviewId: string) => {
-  const db = prisma as any; // cast until Prisma types are regenerated
+  const db = prisma as any;
 
   const interview = await db.interview.findFirst({
     where: { id: interviewId, userId },
@@ -45,7 +49,7 @@ export const getInterviewById = async (userId: string, interviewId: string) => {
 export const createInterview = async (userId: string, payload: StartInterviewRequest) => {
   const startedAt = payload.startedAt ? new Date(payload.startedAt) : new Date();
 
-  const db = prisma as any; // cast until Prisma types are regenerated
+  const db = prisma as any;
 
   return db.interview.create({
     data: {
@@ -61,7 +65,7 @@ export const createInterview = async (userId: string, payload: StartInterviewReq
 };
 
 export const saveAnalysis = async (userId: string, payload: SaveAnalysisRequest) => {
-  const db = prisma as any; // cast until Prisma types are regenerated
+  const db = prisma as any;
 
   const interview = await db.interview.findFirst({
     where: { id: payload.interviewId, userId },
@@ -97,16 +101,16 @@ export const saveAnalysis = async (userId: string, payload: SaveAnalysisRequest)
   });
 };
 
-const ANALYSIS_MODEL = process.env.ANALYSIS_MODEL_NAME || process.env.MODEL_NAME || 'gemini-1.5-pro';
+const ANALYSIS_MODEL =
+  process.env.ANALYSIS_MODEL_NAME || process.env.MODEL_NAME || 'gemini-1.5-pro';
 
-// Default weights (used when round type is unknown)
 const DEFAULT_RUBRIC_WEIGHTS: Record<string, number> = {
-  problemSolving: 0.20,
-  technical: 0.20,
-  roleKnowledge: 0.20,
+  problemSolving: 0.2,
+  technical: 0.2,
+  roleKnowledge: 0.2,
   experience: 0.15,
   communication: 0.15,
-  professional: 0.10,
+  professional: 0.1,
 };
 
 /**
@@ -128,7 +132,7 @@ const buildAnalysisPrompt = (params: {
   pauseMetrics?: PauseMetrics | null;
 }) => {
   let speechAnalysisSection = '';
-  
+
   if (params.pauseMetrics) {
     const pm = params.pauseMetrics;
     speechAnalysisSection = `
@@ -194,7 +198,9 @@ ${params.contextPrompt || 'None'}
 `;
 };
 
-const toDimension = (val: any): { score?: number | null; notes?: string | null; source?: string } => {
+const toDimension = (
+  val: any,
+): { score?: number | null; notes?: string | null; source?: string } => {
   if (!val) return {};
   return {
     score: typeof val.score === 'number' ? val.score : null,
@@ -204,7 +210,7 @@ const toDimension = (val: any): { score?: number | null; notes?: string | null; 
 
 const computeWeightedOverall = (
   scores: Record<string, number | null | undefined>,
-  weights: Record<string, number> = DEFAULT_RUBRIC_WEIGHTS
+  weights: Record<string, number> = DEFAULT_RUBRIC_WEIGHTS,
 ): number | null => {
   let total = 0;
   let weightSum = 0;
@@ -217,12 +223,12 @@ const computeWeightedOverall = (
     }
   });
   if (weightSum === 0) return null;
-  // Scores are 0-10; weighted average stays in that range
+
   return parseFloat((total / weightSum).toFixed(2));
 };
 
 export const analyzeInterview = async (userId: string, interviewId: string) => {
-  const db = prisma as any; // cast until Prisma types are regenerated
+  const db = prisma as any;
 
   const interview = await db.interview.findFirst({
     where: { id: interviewId, userId },
@@ -241,17 +247,21 @@ export const analyzeInterview = async (userId: string, interviewId: string) => {
     throw new Error('Transcript not found for interview');
   }
 
-  // Extract transcript entries - handle different formats
   let transcript: TranscriptEntry[] = [];
   if (Array.isArray(transcriptData)) {
     transcript = transcriptData;
   } else if (transcriptData.messages && Array.isArray(transcriptData.messages)) {
     transcript = transcriptData.messages;
   } else if (typeof transcriptData === 'object') {
-    // Handle object with numeric keys like the example provided
     const entries = Object.keys(transcriptData)
-      .filter(key => key !== 'status' && key !== 'utterances' && key !== 'pauseMetrics' && key !== 'averageExpressions')
-      .map(key => transcriptData[key])
+      .filter(
+        (key) =>
+          key !== 'status' &&
+          key !== 'utterances' &&
+          key !== 'pauseMetrics' &&
+          key !== 'averageExpressions',
+      )
+      .map((key) => transcriptData[key])
       .filter((entry: any) => entry && typeof entry === 'object' && entry.role && entry.text);
     transcript = entries;
   }
@@ -260,7 +270,6 @@ export const analyzeInterview = async (userId: string, interviewId: string) => {
     throw new Error('Transcript not found for interview');
   }
 
-  // Extract averageExpressions and pauseMetrics from transcript data
   const averageExpressions = transcriptData.averageExpressions || null;
   const pauseMetrics = transcriptData.pauseMetrics || null;
 
@@ -304,25 +313,27 @@ export const analyzeInterview = async (userId: string, interviewId: string) => {
     modelVersion: ANALYSIS_MODEL,
   };
 
-  // If model did not provide overall score, compute weighted based on round type
   if (!result.overall?.score) {
     const roundWeights = getWeightsForRound(interview.roundType);
-    const overallScore = computeWeightedOverall({
-      problemSolving: result.problemSolving?.score,
-      technical: result.technical?.score,
-      roleKnowledge: result.roleKnowledge?.score,
-      experience: result.experience?.score,
-      communication: result.communication?.score,
-      professional: result.professional?.score,
-    }, roundWeights);
+    const overallScore = computeWeightedOverall(
+      {
+        problemSolving: result.problemSolving?.score,
+        technical: result.technical?.score,
+        roleKnowledge: result.roleKnowledge?.score,
+        experience: result.experience?.score,
+        communication: result.communication?.score,
+        professional: result.professional?.score,
+      },
+      roundWeights,
+    );
     result.overall = {
       ...(result.overall || {}),
       score: overallScore,
-      notes: result.overall?.notes || `Weighted average for ${interview.roundType || 'general'} round`,
+      notes:
+        result.overall?.notes || `Weighted average for ${interview.roundType || 'general'} round`,
     };
   }
 
-  // Merge with existing analysis (retain professional if already set)
   const merged: SaveAnalysisRequest = {
     interviewId,
     technical: result.technical,
@@ -350,7 +361,7 @@ export const getStats = async (userId: string) => {
   });
 
   const totalInterviews = interviews.length;
-  
+
   const totalDurationSeconds = interviews.reduce((acc: number, curr: any) => {
     return acc + (curr.durationSeconds || 0);
   }, 0);
@@ -360,7 +371,6 @@ export const getStats = async (userId: string) => {
   let scoredInterviews = 0;
 
   interviews.forEach((interview: any) => {
-    // Check if overall score exists in the JSON
     const score = interview.analysis?.overall?.score;
     if (typeof score === 'number') {
       totalScore += score;
@@ -380,7 +390,6 @@ export const getStats = async (userId: string) => {
 export const generateAnalysis = async (userId: string, interviewId: string) => {
   const db = prisma as any;
 
-  // 1. Get Interview with Transcripts
   const interview = await db.interview.findFirst({
     where: { id: interviewId, userId },
     include: {
@@ -392,70 +401,76 @@ export const generateAnalysis = async (userId: string, interviewId: string) => {
     throw new Error('Interview not found');
   }
 
-  // 2. Get User Profile for context
   const userProfile = await db.userProfile.findUnique({
     where: { userId },
   });
 
-  // 3. Combine transcripts and extract metrics
   let fullTranscriptText = '';
   let averageExpressions: Record<string, number> | null = null;
   let pauseMetrics: PauseMetrics | null = null;
 
   if (interview.transcripts && interview.transcripts.length > 0) {
-     // Sort by created at
-     const sorted = interview.transcripts.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-     
-     for (const t of sorted) {
-        const transcriptData = t.transcript as any;
-        
-        // Extract averageExpressions and pauseMetrics from first transcript that has them
-        if (!averageExpressions && transcriptData?.averageExpressions) {
-          averageExpressions = transcriptData.averageExpressions;
-        }
-        if (!pauseMetrics && transcriptData?.pauseMetrics) {
-          pauseMetrics = transcriptData.pauseMetrics;
-        }
+    const sorted = interview.transcripts.sort(
+      (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
 
-        if (typeof transcriptData === 'string') {
-            fullTranscriptText += transcriptData + '\n';
-        } else if (Array.isArray(transcriptData)) {
-            // Vapi message format usually: { role: 'user' | 'assistant', message: string } or { role, content }
-            fullTranscriptText += transcriptData.map((m: any) => {
+    for (const t of sorted) {
+      const transcriptData = t.transcript as any;
+
+      if (!averageExpressions && transcriptData?.averageExpressions) {
+        averageExpressions = transcriptData.averageExpressions;
+      }
+      if (!pauseMetrics && transcriptData?.pauseMetrics) {
+        pauseMetrics = transcriptData.pauseMetrics;
+      }
+
+      if (typeof transcriptData === 'string') {
+        fullTranscriptText += transcriptData + '\n';
+      } else if (Array.isArray(transcriptData)) {
+        fullTranscriptText +=
+          transcriptData
+            .map((m: any) => {
+              const role = m.role || 'Unknown';
+              const content = m.message || m.content || m.text || JSON.stringify(m);
+              return `${role}: ${content}`;
+            })
+            .join('\n') + '\n';
+      } else if (typeof transcriptData === 'object' && transcriptData !== null) {
+        if (transcriptData.messages && Array.isArray(transcriptData.messages)) {
+          fullTranscriptText +=
+            transcriptData.messages
+              .map((m: any) => {
                 const role = m.role || 'Unknown';
                 const content = m.message || m.content || m.text || JSON.stringify(m);
                 return `${role}: ${content}`;
-            }).join('\n') + '\n';
-        } else if (typeof transcriptData === 'object' && transcriptData !== null) {
-             // Handle object with numeric keys or messages array
-             if (transcriptData.messages && Array.isArray(transcriptData.messages)) {
-               fullTranscriptText += transcriptData.messages.map((m: any) => {
-                 const role = m.role || 'Unknown';
-                 const content = m.message || m.content || m.text || JSON.stringify(m);
-                 return `${role}: ${content}`;
-               }).join('\n') + '\n';
-             } else {
-               // Handle object with numeric keys
-               const entries = Object.keys(transcriptData)
-                 .filter(key => key !== 'status' && key !== 'utterances' && key !== 'pauseMetrics' && key !== 'averageExpressions')
-                 .map(key => transcriptData[key])
-                 .filter((entry: any) => entry && typeof entry === 'object' && entry.role && entry.text)
-                 .map((m: any) => {
-                   const role = m.role || 'Unknown';
-                   const content = m.text || m.message || m.content || JSON.stringify(m);
-                   return `${role}: ${content}`;
-                 });
-               fullTranscriptText += entries.join('\n') + '\n';
-             }
+              })
+              .join('\n') + '\n';
+        } else {
+          const entries = Object.keys(transcriptData)
+            .filter(
+              (key) =>
+                key !== 'status' &&
+                key !== 'utterances' &&
+                key !== 'pauseMetrics' &&
+                key !== 'averageExpressions',
+            )
+            .map((key) => transcriptData[key])
+            .filter((entry: any) => entry && typeof entry === 'object' && entry.role && entry.text)
+            .map((m: any) => {
+              const role = m.role || 'Unknown';
+              const content = m.text || m.message || m.content || JSON.stringify(m);
+              return `${role}: ${content}`;
+            });
+          fullTranscriptText += entries.join('\n') + '\n';
         }
-     }
+      }
+    }
   }
 
   if (!fullTranscriptText.trim()) {
-      throw new Error('No transcript available for analysis');
+    throw new Error('No transcript available for analysis');
   }
 
-  // 4. Generate Feedback
   const agent = new FeedbackGeneratorAgent();
   const result = await agent.generate({
     transcript: fullTranscriptText,
@@ -466,7 +481,6 @@ export const generateAnalysis = async (userId: string, interviewId: string) => {
     pauseMetrics,
   });
 
-  // 5. Save Analysis
   return db.interviewAnalysis.upsert({
     where: { interviewId },
     update: {
@@ -488,7 +502,7 @@ export const generateAnalysis = async (userId: string, interviewId: string) => {
       experience: result.experience,
       professional: result.professional,
       overall: result.overall,
-      modelVersion: process.env.MODEL_NAME || 'gemini-flash-latest', 
+      modelVersion: process.env.MODEL_NAME || 'gemini-flash-latest',
     },
   });
 };
@@ -508,6 +522,3 @@ export const deleteInterview = async (userId: string, interviewId: string): Prom
     where: { id: interviewId },
   });
 };
-
-
-

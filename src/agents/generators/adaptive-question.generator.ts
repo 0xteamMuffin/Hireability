@@ -20,34 +20,28 @@ const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 2000;
 
 interface AdaptiveQuestionContext {
-  // Interview state
   roundType: RoundType;
   phase: string;
   questionsAsked: number;
   averageScore: number;
-  
-  // Topic coverage
+
   topicsCovered: QuestionCategory[];
   topicsRemaining: QuestionCategory[];
   weakAreas: QuestionCategory[];
   strongAreas: QuestionCategory[];
-  
-  // Performance signals
+
   suggestedDifficulty: Difficulty;
   scoreTrend: 'improving' | 'stable' | 'declining';
   confidenceLevel: 'low' | 'medium' | 'high';
-  
-  // Candidate context
+
   targetRole?: string;
   targetCompany?: string;
   experienceLevel?: string;
   resumeContext?: string;
-  
-  // Previous Q&A for follow-ups
+
   previousQuestion?: QuestionState;
   recentQuestions?: QuestionState[];
-  
-  // Special flags
+
   shouldWrapUp: boolean;
   isFollowUp?: boolean;
 }
@@ -59,7 +53,7 @@ export class AdaptiveQuestionGeneratorAgent {
    * Sleep helper for retry delays
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -68,7 +62,11 @@ export class AdaptiveQuestionGeneratorAgent {
   private isRateLimitError(error: unknown): boolean {
     if (error && typeof error === 'object') {
       const err = error as { status?: number; message?: string };
-      return err.status === 429 || (err.message?.includes('429') ?? false) || (err.message?.includes('quota') ?? false);
+      return (
+        err.status === 429 ||
+        (err.message?.includes('429') ?? false) ||
+        (err.message?.includes('quota') ?? false)
+      );
     }
     return false;
   }
@@ -112,14 +110,16 @@ export class AdaptiveQuestionGeneratorAgent {
         };
       } catch (error) {
         lastError = error;
-        
+
         if (this.isRateLimitError(error) && attempt < MAX_RETRIES - 1) {
           const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-          console.log(`[AdaptiveQuestion] Rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          console.log(
+            `[AdaptiveQuestion] Rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`,
+          );
           await this.sleep(delay);
           continue;
         }
-        
+
         break;
       }
     }
@@ -134,7 +134,7 @@ export class AdaptiveQuestionGeneratorAgent {
   async generateFollowUp(
     state: InterviewState,
     previousAnswer: string,
-    evaluationFeedback: string
+    evaluationFeedback: string,
   ): Promise<NextQuestionResponse> {
     const context = this.buildContext(state);
     const prompt = this.buildFollowUpPrompt(context, previousAnswer, evaluationFeedback);
@@ -267,7 +267,7 @@ Generate the next interview question. Consider:
   private buildFollowUpPrompt(
     context: AdaptiveQuestionContext,
     previousAnswer: string,
-    evaluationFeedback: string
+    evaluationFeedback: string,
   ): string {
     return `You are an expert interviewer conducting a follow-up question.
 
@@ -352,7 +352,6 @@ Generate a follow-up question that:
   }
 
   private selectNextCategory(context: AdaptiveQuestionContext): QuestionCategory {
-    // Priority order based on round type and what's not covered
     const priorityMap: Record<RoundType, QuestionCategory[]> = {
       [RoundType.BEHAVIORAL]: [
         QuestionCategory.INTRODUCTION,
@@ -386,19 +385,16 @@ Generate a follow-up question that:
 
     const priorities = priorityMap[context.roundType] || priorityMap[RoundType.BEHAVIORAL];
 
-    // Find first uncovered topic in priority order
     for (const category of priorities) {
       if (context.topicsRemaining.includes(category)) {
         return category;
       }
     }
 
-    // If all covered, revisit weak areas
     if (context.weakAreas.length > 0) {
       return context.weakAreas[0];
     }
 
-    // Default to experience
     return QuestionCategory.EXPERIENCE;
   }
 
@@ -442,12 +438,10 @@ Generate a follow-up question that:
     const asked = context.questionsAsked;
     const uncovered = context.topicsRemaining.length;
 
-    // At least cover remaining topics, or reach minimum
     return Math.max(min - asked, uncovered, 1);
   }
 
   private getFallbackQuestion(context: AdaptiveQuestionContext): NextQuestionResponse {
-    // Expanded fallback questions with variety per round type
     const fallbackPool: Record<RoundType, string[]> = {
       [RoundType.BEHAVIORAL]: [
         'Tell me about a challenging project you worked on recently.',
@@ -493,13 +487,14 @@ Generate a follow-up question that:
     };
 
     const pool = fallbackPool[context.roundType] || fallbackPool[RoundType.BEHAVIORAL];
-    
-    // Rotate through fallback questions to avoid repetition
+
     const currentIndex = this.fallbackIndex.get(context.roundType) || 0;
     const question = pool[currentIndex % pool.length];
     this.fallbackIndex.set(context.roundType, currentIndex + 1);
 
-    console.log(`[AdaptiveQuestion] Using fallback question ${currentIndex + 1} for ${context.roundType}`);
+    console.log(
+      `[AdaptiveQuestion] Using fallback question ${currentIndex + 1} for ${context.roundType}`,
+    );
 
     return {
       question,
@@ -512,5 +507,4 @@ Generate a follow-up question that:
   }
 }
 
-// Export singleton instance
 export const adaptiveQuestionGenerator = new AdaptiveQuestionGeneratorAgent();

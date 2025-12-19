@@ -25,7 +25,7 @@ export const isMultiRoundEnabled = async (userId: string): Promise<boolean> => {
   const settings = await db.userSettings.findUnique({
     where: { userId },
   });
-  
+
   return settings?.multiRoundEnabled ?? true;
 };
 
@@ -36,7 +36,7 @@ export const isPrerequisitesEnabled = async (userId: string): Promise<boolean> =
   const settings = await db.userSettings.findUnique({
     where: { userId },
   });
-  
+
   return settings?.prerequisitesEnabled ?? true;
 };
 
@@ -45,19 +45,31 @@ export const isPrerequisitesEnabled = async (userId: string): Promise<boolean> =
  * Customized based on user's experience level from their profile
  */
 const LEVEL_DEFAULT_ROUNDS: Record<string, RoundType[]> = {
-  // Entry level - focus on basics
-  'Intern': [RoundType.BEHAVIORAL, RoundType.TECHNICAL],
+  Intern: [RoundType.BEHAVIORAL, RoundType.TECHNICAL],
   'Junior (SDE I)': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.CODING],
-  
-  // Mid level - add coding challenges
+
   'Mid-Level (SDE II)': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.CODING],
-  
-  // Senior level - include system design
-  'Senior (SDE III)': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.SYSTEM_DESIGN, RoundType.CODING],
-  
-  // Staff+ - full interview loop
-  'Staff Engineer': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.SYSTEM_DESIGN, RoundType.CODING, RoundType.HR],
-  'Engineering Manager': [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.SYSTEM_DESIGN, RoundType.HR],
+
+  'Senior (SDE III)': [
+    RoundType.BEHAVIORAL,
+    RoundType.TECHNICAL,
+    RoundType.SYSTEM_DESIGN,
+    RoundType.CODING,
+  ],
+
+  'Staff Engineer': [
+    RoundType.BEHAVIORAL,
+    RoundType.TECHNICAL,
+    RoundType.SYSTEM_DESIGN,
+    RoundType.CODING,
+    RoundType.HR,
+  ],
+  'Engineering Manager': [
+    RoundType.BEHAVIORAL,
+    RoundType.TECHNICAL,
+    RoundType.SYSTEM_DESIGN,
+    RoundType.HR,
+  ],
 };
 
 /**
@@ -65,25 +77,22 @@ const LEVEL_DEFAULT_ROUNDS: Record<string, RoundType[]> = {
  * Priority: 1) User settings, 2) Level-based defaults, 3) Fallback
  */
 export const getUserDefaultRounds = async (userId: string): Promise<RoundType[]> => {
-  // First check if user has custom settings
   const settings = await db.userSettings.findUnique({
     where: { userId },
   });
-  
+
   if (settings?.defaultRounds?.length) {
     return settings.defaultRounds as RoundType[];
   }
-  
-  // Get user's profile to determine level-based defaults
+
   const profile = await db.userProfile.findUnique({
     where: { userId },
   });
-  
+
   if (profile?.level && LEVEL_DEFAULT_ROUNDS[profile.level]) {
     return LEVEL_DEFAULT_ROUNDS[profile.level];
   }
-  
-  // Fallback default
+
   return [RoundType.BEHAVIORAL, RoundType.TECHNICAL, RoundType.CODING];
 };
 
@@ -92,29 +101,27 @@ export const getUserDefaultRounds = async (userId: string): Promise<RoundType[]>
  */
 export const createSession = async (
   userId: string,
-  payload: CreateSessionRequest
+  payload: CreateSessionRequest,
 ): Promise<SessionResponse> => {
   const multiRoundEnabled = await isMultiRoundEnabled(userId);
   const prerequisitesEnabled = await isPrerequisitesEnabled(userId);
-  
-  // Get rounds to create
+
   let roundTypes: RoundType[];
   if (payload.rounds?.length) {
-    // Validate provided round types
     const validRoundTypes = Object.values(RoundType);
-    const invalidRounds = payload.rounds.filter(r => !validRoundTypes.includes(r));
+    const invalidRounds = payload.rounds.filter((r) => !validRoundTypes.includes(r));
     if (invalidRounds.length > 0) {
-      throw new Error(`Invalid round types: ${invalidRounds.join(', ')}. Valid types: ${validRoundTypes.join(', ')}`);
+      throw new Error(
+        `Invalid round types: ${invalidRounds.join(', ')}. Valid types: ${validRoundTypes.join(', ')}`,
+      );
     }
     roundTypes = payload.rounds;
   } else if (multiRoundEnabled) {
     roundTypes = await getUserDefaultRounds(userId);
   } else {
-    // Single round mode - just behavioral/technical combined
     roundTypes = [RoundType.TECHNICAL];
   }
-  
-  // Create session
+
   const session = await db.interviewSession.create({
     data: {
       userId,
@@ -124,14 +131,12 @@ export const createSession = async (
       totalRounds: roundTypes.length,
     },
   });
-  
-  // Create rounds - lock based on prerequisitesEnabled setting
+
   const roundsData = roundTypes.map((type, index) => {
     const order = index + 1;
-    
-    // If prerequisites disabled, all rounds are unlocked; otherwise only first is unlocked
+
     const isLocked = prerequisitesEnabled ? order > 1 : false;
-    
+
     return {
       sessionId: session.id,
       roundType: type,
@@ -140,12 +145,11 @@ export const createSession = async (
       isLocked,
     };
   });
-  
+
   await db.interviewRound.createMany({
     data: roundsData,
   });
-  
-  // Fetch complete session with rounds
+
   return getSession(userId, session.id);
 };
 
@@ -162,12 +166,8 @@ export const deleteSession = async (userId: string, sessionId: string): Promise<
     throw new Error('Session not found or does not belong to user');
   }
 
-  // Get all interview IDs associated with this session's rounds
-  const interviewIds = session.rounds
-    .map((r: any) => r.interviewId)
-    .filter(Boolean);
+  const interviewIds = session.rounds.map((r: any) => r.interviewId).filter(Boolean);
 
-  // Delete interviews (this will cascade to analysis and transcripts)
   if (interviewIds.length > 0) {
     await db.interview.deleteMany({
       where: {
@@ -177,7 +177,6 @@ export const deleteSession = async (userId: string, sessionId: string): Promise<
     });
   }
 
-  // Delete the session (this will cascade to rounds)
   await db.interviewSession.delete({
     where: { id: sessionId },
   });
@@ -186,10 +185,7 @@ export const deleteSession = async (userId: string, sessionId: string): Promise<
 /**
  * Get session by ID with all rounds
  */
-export const getSession = async (
-  userId: string,
-  sessionId: string
-): Promise<SessionResponse> => {
+export const getSession = async (userId: string, sessionId: string): Promise<SessionResponse> => {
   const session = await db.interviewSession.findFirst({
     where: { id: sessionId, userId },
     include: {
@@ -198,11 +194,11 @@ export const getSession = async (
       },
     },
   });
-  
+
   if (!session) {
     throw new Error('Session not found');
   }
-  
+
   return formatSessionResponse(session);
 };
 
@@ -219,7 +215,7 @@ export const getSessions = async (userId: string): Promise<SessionResponse[]> =>
     },
     orderBy: { createdAt: 'desc' },
   });
-  
+
   return sessions.map(formatSessionResponse);
 };
 
@@ -239,7 +235,7 @@ export const getActiveSession = async (userId: string): Promise<SessionResponse 
     },
     orderBy: { createdAt: 'desc' },
   });
-  
+
   return session ? formatSessionResponse(session) : null;
 };
 
@@ -248,50 +244,48 @@ export const getActiveSession = async (userId: string): Promise<SessionResponse 
  */
 export const startRound = async (
   userId: string,
-  payload: StartRoundRequest
+  payload: StartRoundRequest,
 ): Promise<RoundResponse> => {
-  // Verify session ownership
   const session = await db.interviewSession.findFirst({
     where: { id: payload.sessionId, userId },
   });
-  
+
   if (!session) {
     throw new Error('Session not found');
   }
-  
-  // Get the round
+
   const round = await db.interviewRound.findFirst({
     where: { id: payload.roundId, sessionId: payload.sessionId },
   });
-  
+
   if (!round) {
     throw new Error('Round not found');
   }
-  
-  // Check prerequisites setting - only enforce locking if prerequisites enabled
+
   const prerequisitesEnabled = await isPrerequisitesEnabled(userId);
   if (prerequisitesEnabled && round.isLocked) {
     throw new Error('Round is locked. Complete previous rounds first.');
   }
-  
-  if (round.status !== InterviewStatus.NOT_STARTED && round.status !== InterviewStatus.IN_PROGRESS) {
+
+  if (
+    round.status !== InterviewStatus.NOT_STARTED &&
+    round.status !== InterviewStatus.IN_PROGRESS
+  ) {
     throw new Error('Round has already been completed');
   }
-  
-  // Update round status
+
   const updatedRound = await db.interviewRound.update({
     where: { id: round.id },
     data: {
       status: InterviewStatus.IN_PROGRESS,
     },
   });
-  
-  // Update session current round
+
   await db.interviewSession.update({
     where: { id: session.id },
     data: { currentRound: round.order },
   });
-  
+
   return formatRoundResponse(updatedRound);
 };
 
@@ -300,26 +294,23 @@ export const startRound = async (
  */
 export const completeRound = async (
   userId: string,
-  payload: CompleteRoundRequest
+  payload: CompleteRoundRequest,
 ): Promise<SessionResponse> => {
-  // Verify session ownership
   const session = await db.interviewSession.findFirst({
     where: { id: payload.sessionId, userId },
     include: { rounds: { orderBy: { order: 'asc' } } },
   });
-  
+
   if (!session) {
     throw new Error('Session not found');
   }
-  
-  // Get the round
+
   const round = session.rounds.find((r: any) => r.id === payload.roundId);
-  
+
   if (!round) {
     throw new Error('Round not found');
   }
-  
-  // Update round status
+
   await db.interviewRound.update({
     where: { id: round.id },
     data: {
@@ -327,8 +318,7 @@ export const completeRound = async (
       interviewId: payload.interviewId || null,
     },
   });
-  
-  // Unlock next round if exists
+
   const nextRound = session.rounds.find((r: any) => r.order === round.order + 1);
   if (nextRound) {
     await db.interviewRound.update({
@@ -336,12 +326,11 @@ export const completeRound = async (
       data: { isLocked: false },
     });
   }
-  
-  // Check if all rounds completed
+
   const allCompleted = session.rounds.every(
-    (r: any) => r.id === round.id || r.status === InterviewStatus.COMPLETED
+    (r: any) => r.id === round.id || r.status === InterviewStatus.COMPLETED,
   );
-  
+
   if (allCompleted) {
     await db.interviewSession.update({
       where: { id: session.id },
@@ -351,7 +340,7 @@ export const completeRound = async (
       },
     });
   }
-  
+
   return getSession(userId, session.id);
 };
 
@@ -361,36 +350,33 @@ export const completeRound = async (
 export const skipRound = async (
   userId: string,
   sessionId: string,
-  roundId: string
+  roundId: string,
 ): Promise<SessionResponse> => {
   const session = await db.interviewSession.findFirst({
     where: { id: sessionId, userId },
     include: { rounds: { orderBy: { order: 'asc' } } },
   });
-  
+
   if (!session) {
     throw new Error('Session not found');
   }
-  
+
   const round = session.rounds.find((r: any) => r.id === roundId);
-  
+
   if (!round) {
     throw new Error('Round not found');
   }
-  
-  // Check if round can be skipped (only non-required rounds)
-  const config = DEFAULT_ROUND_CONFIGS.find(c => c.type === round.roundType);
+
+  const config = DEFAULT_ROUND_CONFIGS.find((c) => c.type === round.roundType);
   if (config?.isRequired) {
     throw new Error('This round is required and cannot be skipped');
   }
-  
-  // Update round status
+
   await db.interviewRound.update({
     where: { id: round.id },
     data: { status: InterviewStatus.SKIPPED },
   });
-  
-  // Unlock next round
+
   const nextRound = session.rounds.find((r: any) => r.order === round.order + 1);
   if (nextRound) {
     await db.interviewRound.update({
@@ -398,7 +384,7 @@ export const skipRound = async (
       data: { isLocked: false },
     });
   }
-  
+
   return getSession(userId, session.id);
 };
 
@@ -407,25 +393,24 @@ export const skipRound = async (
  */
 export const abandonSession = async (
   userId: string,
-  sessionId: string
+  sessionId: string,
 ): Promise<SessionResponse> => {
   const session = await db.interviewSession.findFirst({
     where: { id: sessionId, userId },
   });
-  
+
   if (!session) {
     throw new Error('Session not found');
   }
-  
+
   await db.interviewSession.update({
     where: { id: session.id },
     data: { status: SessionStatus.ABANDONED },
   });
-  
+
   return getSession(userId, sessionId);
 };
 
-// Helper formatters
 function formatSessionResponse(session: any): SessionResponse {
   return {
     id: session.id,

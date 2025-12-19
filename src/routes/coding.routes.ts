@@ -9,23 +9,18 @@ import * as codingController from '../controllers/coding.controller';
 
 const router = Router();
 
-// Public routes (for browsing problems)
 router.get('/problems', codingController.getAllProblems);
 router.get('/problems/random', codingController.getProblem);
 router.get('/problems/:problemId', codingController.getProblemById);
 
-// Seed endpoint (public for development - should be protected in production)
 router.post('/seed', codingController.seedProblems);
 
-// Authenticated routes
 router.use(authMiddleware);
 
-// Code execution and submission
 router.post('/run', codingController.runCode);
 router.post('/submit', codingController.submitCode);
 router.post('/hint', codingController.getHint);
 
-// Round-specific
 router.post('/round/:roundId/assign', codingController.assignProblem);
 
 export default router;

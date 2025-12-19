@@ -3,7 +3,6 @@
  * Real-time interview state tracking for adaptive interviews
  */
 
-// Round types (must match prisma enum)
 export enum RoundType {
   BEHAVIORAL = 'BEHAVIORAL',
   TECHNICAL = 'TECHNICAL',
@@ -12,14 +11,12 @@ export enum RoundType {
   HR = 'HR',
 }
 
-// Question difficulty levels
 export enum Difficulty {
   EASY = 'EASY',
   MEDIUM = 'MEDIUM',
   HARD = 'HARD',
 }
 
-// Question categories for topic tracking
 export enum QuestionCategory {
   INTRODUCTION = 'introduction',
   EXPERIENCE = 'experience',
@@ -32,7 +29,6 @@ export enum QuestionCategory {
   CLOSING = 'closing',
 }
 
-// Individual question state
 export interface QuestionState {
   id: string;
   question: string;
@@ -41,7 +37,7 @@ export interface QuestionState {
   askedAt: Date;
   answeredAt?: Date;
   answer?: string;
-  score?: number; // 0-10
+  score?: number;
   feedback?: string;
   followUpAsked?: boolean;
   isFollowUp: boolean;
@@ -50,29 +46,26 @@ export interface QuestionState {
   metadata?: Record<string, unknown>;
 }
 
-// Topic coverage tracking
 export interface TopicCoverage {
   category: QuestionCategory;
   questionsAsked: number;
   averageScore: number;
-  covered: boolean; // Has at least one question been asked
-  depth: 'shallow' | 'moderate' | 'deep'; // Based on follow-ups and score
+  covered: boolean;
+  depth: 'shallow' | 'moderate' | 'deep';
 }
 
-// Rolling performance metrics
 export interface PerformanceMetrics {
   totalQuestions: number;
   answeredQuestions: number;
   averageScore: number;
-  recentScores: number[]; // Last 5 scores for trend
+  recentScores: number[];
   scoreTrend: 'improving' | 'stable' | 'declining';
   strongAreas: QuestionCategory[];
   weakAreas: QuestionCategory[];
   suggestedDifficulty: Difficulty;
-  confidenceLevel: 'low' | 'medium' | 'high'; // Based on pause metrics and expression
+  confidenceLevel: 'low' | 'medium' | 'high';
 }
 
-// Coding round specific state
 export interface CodingState {
   problemId: string;
   problemTitle: string;
@@ -116,86 +109,69 @@ export interface TestCaseResult {
   executionTimeMs?: number;
 }
 
-// Main interview state
 export interface InterviewState {
-  // Identifiers
   id: string;
   interviewId: string;
   userId: string;
   sessionId?: string;
-  
-  // Round info
+
   roundType: RoundType;
   roundOrder: number;
-  
-  // Timing
+
   startedAt: Date;
   lastActivityAt: Date;
   estimatedDurationMinutes: number;
   elapsedSeconds: number;
-  
-  // Interview context
+
   targetRole?: string;
   targetCompany?: string;
   experienceLevel?: string;
-  resumeContext?: string; // Condensed resume info
-  
-  // Question tracking
+  resumeContext?: string;
+
   questions: QuestionState[];
   currentQuestionIndex: number;
   topicCoverage: Record<QuestionCategory, TopicCoverage>;
-  
-  // Performance
+
   performance: PerformanceMetrics;
-  
-  // Coding round (only populated for CODING round)
+
   codingState?: CodingState;
-  
-  // Interview flow control
+
   phase: InterviewPhase;
-  canProceedToNext: boolean; // Ready for next question
-  shouldWrapUp: boolean; // Time to conclude
-  
-  // Real-time signals (from frontend via WebSocket)
+  canProceedToNext: boolean;
+  shouldWrapUp: boolean;
+
   candidateSignals: CandidateSignals;
-  
-  // Metadata
+
   createdAt: Date;
   updatedAt: Date;
-  persistedAt?: Date; // Last time saved to Postgres
+  persistedAt?: Date;
 }
 
-// Interview phases for flow control
 export enum InterviewPhase {
   NOT_STARTED = 'not_started',
   INTRODUCTION = 'introduction',
   MAIN_QUESTIONS = 'main_questions',
-  DEEP_DIVE = 'deep_dive', // Follow-up questions on specific topic
-  CODING_SETUP = 'coding_setup', // Presenting coding problem
-  CODING_ACTIVE = 'coding_active', // Candidate is coding
-  CODING_REVIEW = 'coding_review', // Discussing code solution
+  DEEP_DIVE = 'deep_dive',
+  CODING_SETUP = 'coding_setup',
+  CODING_ACTIVE = 'coding_active',
+  CODING_REVIEW = 'coding_review',
   WRAP_UP = 'wrap_up',
   COMPLETED = 'completed',
 }
 
-// Real-time signals from candidate (via WebSocket)
 export interface CandidateSignals {
-  // From facial detection
   currentExpression?: string;
   expressionConfidence?: number;
   averageExpressions?: Record<string, number>;
-  
-  // From speech analysis (real-time)
+
   currentPauseSeconds?: number;
   longPauseDetected?: boolean;
-  
-  // From code editor (for coding rounds)
+
   isTyping?: boolean;
   lastCodeUpdate?: Date;
   codeLength?: number;
 }
 
-// State update payloads
 export interface AskQuestionPayload {
   question: string;
   category: QuestionCategory;
@@ -220,19 +196,18 @@ export interface UpdateCodingStatePayload {
   executionResult?: CodeExecutionResult;
 }
 
-// VAPI tool response types
 export interface NextQuestionResponse {
   question: string;
   category: QuestionCategory;
   difficulty: Difficulty;
-  context?: string; // Why this question was chosen
+  context?: string;
   isFollowUp: boolean;
   topicsRemaining: QuestionCategory[];
   estimatedQuestionsLeft: number;
 }
 
 export interface AnswerEvaluationResponse {
-  score: number; // 0-10
+  score: number;
   feedback: string;
   strengths: string[];
   improvements: string[];
@@ -258,9 +233,7 @@ export interface InterviewStateSnapshot {
   };
 }
 
-// WebSocket events
 export enum SocketEvent {
-  // Server -> Client
   STATE_UPDATE = 'interview:state_update',
   QUESTION_ASKED = 'interview:question_asked',
   ANSWER_EVALUATED = 'interview:answer_evaluated',
@@ -269,8 +242,7 @@ export enum SocketEvent {
   HINT_PROVIDED = 'interview:hint_provided',
   PHASE_CHANGED = 'interview:phase_changed',
   INTERVIEW_COMPLETED = 'interview:completed',
-  
-  // Client -> Server
+
   JOIN_INTERVIEW = 'interview:join',
   LEAVE_INTERVIEW = 'interview:leave',
   CODE_UPDATE = 'interview:code_update',
@@ -287,7 +259,7 @@ export interface SocketPayloads {
   [SocketEvent.HINT_PROVIDED]: { hint: string; hintsRemaining: number };
   [SocketEvent.PHASE_CHANGED]: { phase: InterviewPhase; reason: string };
   [SocketEvent.INTERVIEW_COMPLETED]: { summary: InterviewStateSnapshot };
-  
+
   [SocketEvent.JOIN_INTERVIEW]: { interviewId: string; userId: string };
   [SocketEvent.LEAVE_INTERVIEW]: { interviewId: string };
   [SocketEvent.CODE_UPDATE]: { code: string; language: string };

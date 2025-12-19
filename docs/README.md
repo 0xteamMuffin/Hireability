@@ -25,13 +25,16 @@ Frontend (Next.js) → REST API → Backend (Express.js) → AI Agents (Gemini) 
 ## Key Components
 
 ### AI Agents
+
 - **FeedbackGeneratorAgent**: Analyzes interview transcripts and generates comprehensive feedback
 - **QuestionGeneratorAgent**: Generates interview questions based on role and context
 - **ResumeReviewGenerator**: Analyzes resumes and provides optimization suggestions
 - **DocumentParserAgent**: Extracts structured data from uploaded documents
 
 ### Evaluation Criteria
+
 Interviews are evaluated across 6 dimensions with weighted scoring:
+
 - Technical Skills (20%)
 - Problem Solving (20%)
 - Role Knowledge (20%)
@@ -42,10 +45,10 @@ Interviews are evaluated across 6 dimensions with weighted scoring:
 ## Evaluation Notes
 
 The AI evaluation system uses:
+
 - Structured JSON output from Gemini models
 - Weighted scoring algorithm for overall assessment
 - Context-aware analysis based on target role and company
 - Multi-dimensional feedback with strengths, weaknesses, and improvements
 
 For detailed API documentation and setup instructions, see the main [README.md](../README.md).
-

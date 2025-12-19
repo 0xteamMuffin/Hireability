@@ -4,14 +4,10 @@
  * https://github.com/engineer-man/piston
  */
 
-import {
-  CodeExecutionResult,
-  TestCaseResult,
-} from '../types/interview-state.types';
+import { CodeExecutionResult, TestCaseResult } from '../types/interview-state.types';
 
 const PISTON_API_URL = process.env.PISTON_API_URL || 'https://emkc.org/api/v2/piston';
 
-// Language mappings for Piston API
 const LANGUAGE_MAP: Record<string, { language: string; version: string }> = {
   javascript: { language: 'javascript', version: '18.15.0' },
   typescript: { language: 'typescript', version: '5.0.3' },
@@ -26,7 +22,6 @@ const LANGUAGE_MAP: Record<string, { language: string; version: string }> = {
   csharp: { language: 'csharp', version: '6.12.0' },
 };
 
-// Test case format stored in DB
 export interface TestCase {
   input: string;
   expectedOutput: string;
@@ -34,7 +29,6 @@ export interface TestCase {
   description?: string;
 }
 
-// Piston API response
 interface PistonResponse {
   run: {
     stdout: string;
@@ -59,7 +53,7 @@ export const getRuntimes = async (): Promise<any[]> => {
     if (!response.ok) {
       throw new Error(`Failed to fetch runtimes: ${response.status}`);
     }
-    return await response.json() as any[];
+    return (await response.json()) as any[];
   } catch (error) {
     console.error('[Piston] Failed to fetch runtimes:', error);
     return [];
@@ -72,10 +66,10 @@ export const getRuntimes = async (): Promise<any[]> => {
 export const executeCode = async (
   code: string,
   language: string,
-  stdin?: string
+  stdin?: string,
 ): Promise<CodeExecutionResult> => {
   const langConfig = LANGUAGE_MAP[language.toLowerCase()];
-  
+
   if (!langConfig) {
     return {
       success: false,
@@ -113,9 +107,8 @@ export const executeCode = async (
       };
     }
 
-    const result = await response.json() as PistonResponse;
+    const result = (await response.json()) as PistonResponse;
 
-    // Check for compilation errors
     if (result.compile && result.compile.code !== 0) {
       return {
         success: false,
@@ -125,7 +118,6 @@ export const executeCode = async (
       };
     }
 
-    // Check for runtime errors
     if (result.run.code !== 0 || result.run.stderr) {
       return {
         success: false,
@@ -155,10 +147,10 @@ export const executeCode = async (
 export const executeWithTestCases = async (
   code: string,
   language: string,
-  testCases: TestCase[]
+  testCases: TestCase[],
 ): Promise<CodeExecutionResult> => {
   const langConfig = LANGUAGE_MAP[language.toLowerCase()];
-  
+
   if (!langConfig) {
     return {
       success: false,
@@ -171,12 +163,11 @@ export const executeWithTestCases = async (
   let totalExecutionTime = 0;
   let allPassed = true;
 
-  // Run each test case
   for (const testCase of testCases) {
     const result = await runSingleTestCase(code, langConfig, testCase);
     testResults.push(result);
     totalExecutionTime += result.executionTimeMs || 0;
-    
+
     if (!result.passed) {
       allPassed = false;
     }
@@ -196,7 +187,7 @@ export const executeWithTestCases = async (
 const runSingleTestCase = async (
   code: string,
   langConfig: { language: string; version: string },
-  testCase: TestCase
+  testCase: TestCase,
 ): Promise<TestCaseResult> => {
   const startTime = Date.now();
 
@@ -227,9 +218,8 @@ const runSingleTestCase = async (
       };
     }
 
-    const result = await response.json() as PistonResponse;
+    const result = (await response.json()) as PistonResponse;
 
-    // Compilation error
     if (result.compile && result.compile.code !== 0) {
       return {
         input: testCase.input,
@@ -240,7 +230,6 @@ const runSingleTestCase = async (
       };
     }
 
-    // Runtime error
     if (result.run.code !== 0) {
       return {
         input: testCase.input,
@@ -291,7 +280,7 @@ const normalizeOutput = (output: string): string => {
 export const wrapCodeWithHarness = (
   userCode: string,
   language: string,
-  functionName: string
+  functionName: string,
 ): string => {
   const wrappers: Record<string, (code: string, fn: string) => string> = {
     javascript: (code, fn) => `
@@ -365,19 +354,18 @@ rl.on('close', () => {
  */
 export const validateSyntax = async (
   code: string,
-  language: string
+  language: string,
 ): Promise<{ valid: boolean; error?: string }> => {
   const langConfig = LANGUAGE_MAP[language.toLowerCase()];
-  
+
   if (!langConfig) {
     return { valid: false, error: `Unsupported language: ${language}` };
   }
 
-  // For interpreted languages, we can try a dry run
-  // For compiled languages, just compile without running
-  const testCode = language === 'python' 
-    ? `import ast\nast.parse('''${code.replace(/'''/g, "\\'\\'\\'")}''')`
-    : code;
+  const testCode =
+    language === 'python'
+      ? `import ast\nast.parse('''${code.replace(/'''/g, "\\'\\'\\'")}''')`
+      : code;
 
   try {
     const response = await fetch(`${PISTON_API_URL}/execute`, {
@@ -397,18 +385,17 @@ export const validateSyntax = async (
       return { valid: false, error: 'Validation service unavailable' };
     }
 
-    const result = await response.json() as PistonResponse;
+    const result = (await response.json()) as PistonResponse;
 
     if (result.compile && result.compile.code !== 0) {
       return { valid: false, error: result.compile.stderr };
     }
 
-    // For syntax check, we don't care about runtime errors
     return { valid: true };
   } catch (error) {
-    return { 
-      valid: false, 
-      error: error instanceof Error ? error.message : 'Validation failed' 
+    return {
+      valid: false,
+      error: error instanceof Error ? error.message : 'Validation failed',
     };
   }
 };

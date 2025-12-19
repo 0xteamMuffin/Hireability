@@ -1,9 +1,5 @@
 import { prisma } from '../utils/prisma.util';
-import {
-  CreateTargetInput,
-  UpdateTargetInput,
-  TargetResponse,
-} from '../types/target.types';
+import { CreateTargetInput, UpdateTargetInput, TargetResponse } from '../types/target.types';
 
 export const getTargets = async (userId: string): Promise<TargetResponse[]> => {
   const targets = await prisma.targetCompany.findMany({
@@ -23,10 +19,7 @@ export const getTargets = async (userId: string): Promise<TargetResponse[]> => {
   }));
 };
 
-export const getTargetById = async (
-  id: string,
-  userId: string
-): Promise<TargetResponse | null> => {
+export const getTargetById = async (id: string, userId: string): Promise<TargetResponse | null> => {
   const target = await prisma.targetCompany.findFirst({
     where: { id, userId },
   });
@@ -47,7 +40,7 @@ export const getTargetById = async (
 
 export const createTarget = async (
   userId: string,
-  data: CreateTargetInput
+  data: CreateTargetInput,
 ): Promise<TargetResponse> => {
   const target = await prisma.targetCompany.create({
     data: {
@@ -74,7 +67,7 @@ export const createTarget = async (
 export const updateTarget = async (
   id: string,
   userId: string,
-  data: UpdateTargetInput
+  data: UpdateTargetInput,
 ): Promise<TargetResponse | null> => {
   const existing = await prisma.targetCompany.findFirst({
     where: { id, userId },
@@ -104,10 +97,7 @@ export const updateTarget = async (
   };
 };
 
-export const deleteTarget = async (
-  id: string,
-  userId: string
-): Promise<boolean> => {
+export const deleteTarget = async (id: string, userId: string): Promise<boolean> => {
   const existing = await prisma.targetCompany.findFirst({
     where: { id, userId },
   });

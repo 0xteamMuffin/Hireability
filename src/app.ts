@@ -11,17 +11,18 @@ import settingsRoutes from './routes/settings.routes';
 import transcriptRoutes from './routes/transcript.routes';
 import interviewRoutes from './routes/interview.routes';
 import sessionRoutes from './routes/session.routes';
-import codingRoutes from './routes/coding.routes';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 
 dotenv.config();
 
 const app: Express = express();
 
-app.use(cors({
-  origin: '*',
-  credentials: false,
-}));
+app.use(
+  cors({
+    origin: '*',
+    credentials: false,
+  }),
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -43,10 +44,8 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/transcripts', transcriptRoutes);
 app.use('/api/interviews', interviewRoutes);
 app.use('/api/sessions', sessionRoutes);
-app.use('/api/coding', codingRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
 
 export default app;
-

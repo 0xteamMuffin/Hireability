@@ -23,10 +23,6 @@ import {
 
 const db = prisma as any;
 
-// ============================================================================
-// INTERVIEW INITIALIZATION
-// ============================================================================
-
 export interface InitializeInterviewArgs {
   userId: string;
   interviewId: string;
@@ -40,10 +36,9 @@ export interface InitializeInterviewArgs {
  * Called by VAPI tool: initializeInterview
  */
 export const initializeInterview = async (
-  args: InitializeInterviewArgs
+  args: InitializeInterviewArgs,
 ): Promise<{ success: boolean; state: InterviewStateSnapshot | null; error?: string }> => {
   try {
-    // Fetch user profile and resume context
     const [profile, document] = await Promise.all([
       db.userProfile.findUnique({ where: { userId: args.userId } }),
       db.document.findFirst({
@@ -52,10 +47,9 @@ export const initializeInterview = async (
       }),
     ]);
 
-    // Get target company info if provided
     let targetRole = profile?.targetRole;
     let targetCompany = profile?.targetCompany;
-    
+
     if (args.targetId) {
       const target = await db.targetCompany.findFirst({
         where: { id: args.targetId, userId: args.userId },
@@ -66,7 +60,6 @@ export const initializeInterview = async (
       }
     }
 
-    // Condense resume context for state
     let resumeContext: string | undefined;
     if (document?.parsedData) {
       const parsed = document.parsedData as Record<string, unknown>;
@@ -74,10 +67,9 @@ export const initializeInterview = async (
         skills: parsed.skills,
         experience: parsed.experience,
         education: parsed.education,
-      }).slice(0, 2000); // Limit size
+      }).slice(0, 2000);
     }
 
-    // Create interview state
     await interviewStateService.createInterviewState({
       interviewId: args.interviewId,
       userId: args.userId,
@@ -89,10 +81,8 @@ export const initializeInterview = async (
       resumeContext,
     });
 
-    // Set initial phase
     interviewStateService.setPhase(args.interviewId, InterviewPhase.INTRODUCTION);
 
-    // Emit state update via WebSocket so frontend receives it
     console.log('[InteractiveVapi] Emitting state update for interview:', args.interviewId);
     emitStateUpdate(args.interviewId);
 
@@ -113,13 +103,9 @@ export const initializeInterview = async (
   }
 };
 
-// ============================================================================
-// ADAPTIVE QUESTIONING
-// ============================================================================
-
 export interface GetNextQuestionArgs {
   interviewId: string;
-  previousAnswer?: string; // If provided, evaluate before generating next
+  previousAnswer?: string;
 }
 
 /**
@@ -127,10 +113,10 @@ export interface GetNextQuestionArgs {
  * Called by VAPI tool: getNextQuestion
  */
 export const getNextQuestion = async (
-  args: GetNextQuestionArgs
+  args: GetNextQuestionArgs,
 ): Promise<NextQuestionResponse & { error?: string }> => {
   const state = interviewStateService.getInterviewState(args.interviewId);
-  
+
   if (!state) {
     return {
       question: 'Can you tell me about your background?',
@@ -143,15 +129,12 @@ export const getNextQuestion = async (
     };
   }
 
-  // Update phase if needed
   if (state.phase === InterviewPhase.INTRODUCTION && state.performance.totalQuestions > 0) {
     interviewStateService.setPhase(args.interviewId, InterviewPhase.MAIN_QUESTIONS);
   }
 
-  // Generate next question
   const nextQuestion = await adaptiveQuestionGenerator.generateNextQuestion(state);
 
-  // Record the question in state
   interviewStateService.recordQuestion(args.interviewId, {
     question: nextQuestion.question,
     category: nextQuestion.category,
@@ -159,19 +142,14 @@ export const getNextQuestion = async (
     isFollowUp: nextQuestion.isFollowUp,
   });
 
-  // Emit via socket if available
   emitStateUpdate(args.interviewId);
 
   return nextQuestion;
 };
 
-// ============================================================================
-// ANSWER EVALUATION
-// ============================================================================
-
 export interface EvaluateAnswerArgs {
   interviewId: string;
-  questionId?: string; // Optional - uses current question if not provided
+  questionId?: string;
   answer: string;
 }
 
@@ -180,10 +158,10 @@ export interface EvaluateAnswerArgs {
  * Called by VAPI tool: evaluateAnswer
  */
 export const evaluateAnswer = async (
-  args: EvaluateAnswerArgs
+  args: EvaluateAnswerArgs,
 ): Promise<AnswerEvaluationResponse & { error?: string }> => {
   const state = interviewStateService.getInterviewState(args.interviewId);
-  
+
   if (!state) {
     return {
       score: 5,
@@ -196,7 +174,6 @@ export const evaluateAnswer = async (
     };
   }
 
-  // Find the question being answered
   const questionId = args.questionId || state.questions[state.currentQuestionIndex]?.id;
   const question = state.questions.find((q) => q.id === questionId);
 
@@ -212,7 +189,6 @@ export const evaluateAnswer = async (
     };
   }
 
-  // Evaluate the answer
   const evaluation = await answerEvaluator.evaluate({
     question: question.question,
     category: question.category,
@@ -226,7 +202,6 @@ export const evaluateAnswer = async (
     averageScore: state.performance.averageScore,
   });
 
-  // Record the answer in state
   interviewStateService.recordAnswer(args.interviewId, {
     questionId: question.id,
     answer: args.answer,
@@ -235,23 +210,16 @@ export const evaluateAnswer = async (
     suggestFollowUp: evaluation.suggestFollowUp,
   });
 
-  // Emit via socket
   emitStateUpdate(args.interviewId);
 
   return evaluation;
 };
 
-// ============================================================================
-// INTERVIEW STATE QUERIES
-// ============================================================================
-
 /**
  * Get current interview state snapshot
  * Called by VAPI tool: getInterviewState
  */
-export const getInterviewStateSnapshot = (
-  interviewId: string
-): InterviewStateSnapshot | null => {
+export const getInterviewStateSnapshot = (interviewId: string): InterviewStateSnapshot | null => {
   return interviewStateService.getStateSnapshot(interviewId);
 };
 
@@ -261,7 +229,7 @@ export const getInterviewStateSnapshot = (
  */
 export const shouldWrapUp = (interviewId: string): { shouldWrapUp: boolean; reason: string } => {
   const state = interviewStateService.getInterviewState(interviewId);
-  
+
   if (!state) {
     return { shouldWrapUp: true, reason: 'Interview state not found' };
   }
@@ -279,13 +247,9 @@ export const shouldWrapUp = (interviewId: string): { shouldWrapUp: boolean; reas
   return { shouldWrapUp: false, reason: '' };
 };
 
-// ============================================================================
-// CODING ROUND TOOLS
-// ============================================================================
-
 export interface PresentCodingProblemArgs {
   interviewId: string;
-  problemId?: string; // Optional - auto-selects if not provided
+  problemId?: string;
   difficulty?: Difficulty;
   language?: string;
 }
@@ -295,13 +259,13 @@ export interface PresentCodingProblemArgs {
  * Called by VAPI tool: presentCodingProblem
  */
 export const presentCodingProblem = async (
-  args: PresentCodingProblemArgs
+  args: PresentCodingProblemArgs,
 ): Promise<{ problem: CodingState | null; speechDescription: string; error?: string }> => {
   console.log('[presentCodingProblem] Args:', args);
-  
+
   const state = interviewStateService.getInterviewState(args.interviewId);
   console.log('[presentCodingProblem] Interview state exists:', !!state);
-  
+
   if (!state) {
     return {
       problem: null,
@@ -310,21 +274,21 @@ export const presentCodingProblem = async (
     };
   }
 
-  // Fetch problem from database
   let problem;
-  console.log('[presentCodingProblem] Looking for problem, difficulty:', args.difficulty || state.performance.suggestedDifficulty);
-  
+  console.log(
+    '[presentCodingProblem] Looking for problem, difficulty:',
+    args.difficulty || state.performance.suggestedDifficulty,
+  );
+
   if (args.problemId) {
     problem = await db.codingProblem.findUnique({ where: { id: args.problemId } });
   } else {
-    // Auto-select based on difficulty
     const difficulty = args.difficulty || state.performance.suggestedDifficulty;
     problem = await db.codingProblem.findFirst({
       where: { difficulty },
       orderBy: { createdAt: 'desc' },
     });
-    
-    // Fallback: try to get any problem if none found for specific difficulty
+
     if (!problem) {
       console.log('[presentCodingProblem] No problem for difficulty, trying fallback...');
       problem = await db.codingProblem.findFirst({
@@ -343,37 +307,37 @@ export const presentCodingProblem = async (
     };
   }
 
-  // Initialize coding state
   const language = args.language || 'javascript';
   const starterCodeJson = problem.starterCode as Record<string, string> | null;
-  const starterCode = starterCodeJson?.[language] || starterCodeJson?.['javascript'] || '// Write your solution here';
-  
-  const codingState = interviewStateService.initializeCodingState(args.interviewId, {
-    id: problem.id,
-    title: problem.title,
-    description: problem.description,
-    difficulty: problem.difficulty,
-    starterCode,
-    hints: problem.hints || [],
-    testCases: Array.isArray(problem.testCases) ? problem.testCases.length : 0,
-  }, language);
+  const starterCode = starterCodeJson?.[language] || starterCodeJson?.['javascript'] || '';
 
-  // Update the persistent round record if part of a session
+  const codingState = interviewStateService.initializeCodingState(
+    args.interviewId,
+    {
+      id: problem.id,
+      title: problem.title,
+      description: problem.description,
+      difficulty: problem.difficulty,
+      starterCode,
+      hints: problem.hints || [],
+      testCases: Array.isArray(problem.testCases) ? problem.testCases.length : 0,
+    },
+    language,
+  );
+
   if (state.sessionId) {
     try {
-      // Find the current round for this session and type
-      // We update all matching rounds that are not completed to ensure consistency
       await db.interviewRound.updateMany({
         where: {
           sessionId: state.sessionId,
           roundType: state.roundType,
-          status: { not: 'COMPLETED' }
+          status: { not: 'COMPLETED' },
         },
         data: {
           problemId: problem.id,
           interviewId: args.interviewId,
-          status: 'IN_PROGRESS'
-        }
+          status: 'IN_PROGRESS',
+        },
       });
       console.log('[presentCodingProblem] Updated interview round with problem:', problem.id);
     } catch (err) {
@@ -381,13 +345,10 @@ export const presentCodingProblem = async (
     }
   }
 
-  // Update phase
   interviewStateService.setPhase(args.interviewId, InterviewPhase.CODING_SETUP);
 
-  // Generate speech-friendly description
   const speechDescription = generateProblemSpeech(problem);
 
-  // Emit via socket - send both the coding problem and state update
   emitCodingProblemAssigned(args.interviewId, codingState!);
   socketService.emitStateUpdate(args.interviewId);
 
@@ -402,7 +363,7 @@ export const presentCodingProblem = async (
  * Called by VAPI tool: checkCodeProgress
  */
 export const checkCodeProgress = async (
-  interviewId: string
+  interviewId: string,
 ): Promise<{
   hasCode: boolean;
   linesOfCode: number;
@@ -416,7 +377,7 @@ export const checkCodeProgress = async (
   feedback: string;
 }> => {
   const state = interviewStateService.getInterviewState(interviewId);
-  
+
   if (!state || !state.codingState) {
     return {
       hasCode: false,
@@ -437,7 +398,7 @@ export const checkCodeProgress = async (
   const timeSinceStart = Math.floor((Date.now() - coding.startedAt.getTime()) / 1000);
   const isTyping = state.candidateSignals?.isTyping || false;
   const lastCodeUpdate = state.candidateSignals?.lastCodeUpdate;
-  const secondsSinceLastUpdate = lastCodeUpdate 
+  const secondsSinceLastUpdate = lastCodeUpdate
     ? Math.floor((Date.now() - new Date(lastCodeUpdate).getTime()) / 1000)
     : timeSinceStart;
 
@@ -445,14 +406,15 @@ export const checkCodeProgress = async (
   if (isTyping || secondsSinceLastUpdate < 10) {
     feedback = 'The candidate is actively typing code.';
   } else if (lines < 5 && timeSinceStart > 120) {
-    feedback = 'The candidate hasn\'t written much code yet. Consider asking if they want to talk through their approach.';
+    feedback =
+      "The candidate hasn't written much code yet. Consider asking if they want to talk through their approach.";
   } else if (lines > 20) {
     feedback = 'The candidate has written substantial code. They may be close to a solution.';
   } else if (lines > 10) {
     feedback = 'The candidate is making progress on the code.';
   } else if (coding.submissions.length > 0) {
     const lastSubmission = coding.submissions[coding.submissions.length - 1];
-    const passed = lastSubmission.result.testResults?.filter(t => t.passed).length || 0;
+    const passed = lastSubmission.result.testResults?.filter((t) => t.passed).length || 0;
     const total = lastSubmission.result.testResults?.length || 0;
     feedback = `Last submission: ${passed}/${total} tests passed.`;
   } else {
@@ -464,9 +426,10 @@ export const checkCodeProgress = async (
     linesOfCode: lines,
     codeLength: coding.currentCode.length,
     language: coding.language,
-    lastActivity: secondsSinceLastUpdate < 60 
-      ? `${secondsSinceLastUpdate} seconds ago` 
-      : `${Math.floor(secondsSinceLastUpdate / 60)} minutes ago`,
+    lastActivity:
+      secondsSinceLastUpdate < 60
+        ? `${secondsSinceLastUpdate} seconds ago`
+        : `${Math.floor(secondsSinceLastUpdate / 60)} minutes ago`,
     hintsUsed: coding.hintsUsed,
     hintsAvailable: coding.hintsAvailable?.length || 0,
     attempts: coding.submissions.length,
@@ -477,8 +440,8 @@ export const checkCodeProgress = async (
 
 export interface ExecuteCodeArgs {
   interviewId: string;
-  code?: string; // Optional - will use current code from state if not provided
-  language?: string; // Optional - will use current language from state if not provided
+  code?: string;
+  language?: string;
 }
 
 /**
@@ -486,14 +449,14 @@ export interface ExecuteCodeArgs {
  * Called by VAPI tool: executeCode
  */
 export const executeCode = async (
-  args: ExecuteCodeArgs
+  args: ExecuteCodeArgs,
 ): Promise<{
   result: CodeExecutionResult;
   feedback: string;
   allPassed: boolean;
 }> => {
   const state = interviewStateService.getInterviewState(args.interviewId);
-  
+
   if (!state || !state.codingState) {
     return {
       result: { success: false, error: 'No coding session active' },
@@ -502,13 +465,13 @@ export const executeCode = async (
     };
   }
 
-  // Use provided code/language or fall back to current state
   const codeToExecute = args.code || state.codingState.currentCode;
   const language = args.language || state.codingState.language;
-  
-  console.log(`[executeCode] Running code for ${args.interviewId}, language: ${language}, code length: ${codeToExecute.length}`);
 
-  // Get test cases for the problem
+  console.log(
+    `[executeCode] Running code for ${args.interviewId}, language: ${language}, code length: ${codeToExecute.length}`,
+  );
+
   const problem = await db.codingProblem.findUnique({
     where: { id: state.codingState.problemId },
   });
@@ -521,29 +484,20 @@ export const executeCode = async (
     };
   }
 
-  // Execute code with Piston
   const result = await pistonService.executeWithTestCases(
     codeToExecute,
     language,
-    problem.testCases as pistonService.TestCase[]
+    problem.testCases as pistonService.TestCase[],
   );
 
-  // Record submission
-  interviewStateService.recordCodeSubmission(
-    args.interviewId,
-    codeToExecute,
-    language,
-    result
-  );
+  interviewStateService.recordCodeSubmission(args.interviewId, codeToExecute, language, result);
 
-  // Update coding state
   interviewStateService.updateCodingState(args.interviewId, {
     code: codeToExecute,
     language: language,
     executionResult: result,
   });
 
-  // Generate feedback
   const passed = result.testResults?.filter((t) => t.passed).length || 0;
   const total = result.testResults?.length || 0;
   const allPassed = passed === total && total > 0;
@@ -560,7 +514,6 @@ export const executeCode = async (
     feedback = 'None of the test cases passed yet. Would you like to talk through your approach?';
   }
 
-  // Emit via socket
   emitCodeExecuted(args.interviewId, result);
 
   return { result, feedback, allPassed };
@@ -571,10 +524,10 @@ export const executeCode = async (
  * Called by VAPI tool: getCodingHint
  */
 export const getCodingHint = async (
-  interviewId: string
+  interviewId: string,
 ): Promise<{ hint: string; hintsRemaining: number }> => {
   const state = interviewStateService.getInterviewState(interviewId);
-  
+
   if (!state || !state.codingState) {
     return {
       hint: 'No coding problem is currently active.',
@@ -594,11 +547,9 @@ export const getCodingHint = async (
   }
 
   const hint = hintsAvailable[hintsUsed];
-  
-  // Update state
+
   interviewStateService.updateCodingState(interviewId, { hintUsed: true });
 
-  // Emit via socket
   emitHintProvided(interviewId, hint, hintsAvailable.length - hintsUsed - 1);
 
   return {
@@ -607,23 +558,19 @@ export const getCodingHint = async (
   };
 };
 
-// ============================================================================
-// INTERVIEW COMPLETION
-// ============================================================================
-
 /**
  * Complete the interview and generate summary
  * Called by VAPI tool: completeInterview
  */
 export const completeInterview = async (
-  interviewId: string
+  interviewId: string,
 ): Promise<{
   completed: boolean;
   summary: InterviewStateSnapshot | null;
   farewell: string;
 }> => {
   const state = await interviewStateService.completeInterview(interviewId);
-  
+
   if (!state) {
     return {
       completed: false,
@@ -633,20 +580,21 @@ export const completeInterview = async (
   }
 
   const snapshot = interviewStateService.getStateSnapshot(interviewId);
-  
-  // Generate personalized farewell
+
   const avgScore = state.performance.averageScore;
   let farewell: string;
-  
+
   if (avgScore >= 8) {
-    farewell = 'Excellent interview! You demonstrated strong skills across the board. Thank you for your time, and best of luck!';
+    farewell =
+      'Excellent interview! You demonstrated strong skills across the board. Thank you for your time, and best of luck!';
   } else if (avgScore >= 6) {
-    farewell = 'Good interview! You showed solid understanding of the topics we covered. Thank you for your time today.';
+    farewell =
+      'Good interview! You showed solid understanding of the topics we covered. Thank you for your time today.';
   } else {
-    farewell = 'Thank you for taking the time to interview with us today. Best of luck in your job search!';
+    farewell =
+      'Thank you for taking the time to interview with us today. Best of luck in your job search!';
   }
 
-  // Emit via socket
   emitInterviewCompleted(interviewId, snapshot!);
 
   return {
@@ -656,18 +604,17 @@ export const completeInterview = async (
   };
 };
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
 const generateProblemSpeech = (problem: any): string => {
-  const difficultyWord = problem.difficulty === 'EASY' ? 'straightforward' 
-    : problem.difficulty === 'HARD' ? 'challenging' : 'moderate';
-  
+  const difficultyWord =
+    problem.difficulty === 'EASY'
+      ? 'straightforward'
+      : problem.difficulty === 'HARD'
+        ? 'challenging'
+        : 'moderate';
+
   return `Here's your coding problem. It's a ${difficultyWord} one called "${problem.title}". ${problem.description.slice(0, 500)}. The problem is now displayed in your code editor. Take your time to understand it, and feel free to ask clarifying questions or think out loud as you work through it.`;
 };
 
-// Socket emission helpers - use socketService
 const emitStateUpdate = (interviewId: string): void => {
   socketService.emitStateUpdate(interviewId);
 };

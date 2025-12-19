@@ -8,19 +8,19 @@ HireAbility is an intelligent mock interview platform that leverages AI to provi
 
 ### Key Features
 
-* 🎤 **Real-time AI Interviews**
+- 🎤 **Real-time AI Interviews**
   Live voice and video interviews powered by VAPI, dynamically asking resume-based, role-specific, and company-specific questions.
 
-* 🤖 **Intelligent Evaluation**
+- 🤖 **Intelligent Evaluation**
   Google Gemini analyzes your responses, voice patterns (clarity, pace, confidence), and facial expressions to assess communication and professional demeanor.
 
-* 📊 **Comprehensive Analytics**
+- 📊 **Comprehensive Analytics**
   Parameter-wise scores, strengths, weaknesses, and targeted improvement insights.
 
-* 📄 **Resume-Aware System**
+- 📄 **Resume-Aware System**
   Upload your resume for tailored questioning and AI-driven resume optimization.
 
-* 🎯 **Personalized Experience**
+- 🎯 **Personalized Experience**
   Fully customized interview flow based on your chosen role, company, and experience level.
 
 ## 🏗️ Architecture
@@ -42,6 +42,7 @@ Frontend (Next.js) → REST API → Backend (Express.js) → AI Agents (Gemini) 
 ## 🚀 Setup
 
 ### Prerequisites
+
 - Node.js 18+, PostgreSQL 14+
 - Google Gemini API Key
 - VAPI API Key and Assistant ID
@@ -49,6 +50,7 @@ Frontend (Next.js) → REST API → Backend (Express.js) → AI Agents (Gemini) 
 ### Environment Variables
 
 **Backend (`be_hireability/.env`):**
+
 ```env
 DATABASE_URL="postgresql://user:password@localhost:5432/hireability"
 JWT_SECRET="your-secret-key"
@@ -58,6 +60,7 @@ PORT=3001
 ```
 
 **Frontend (`fe_hireability/.env.local`):**
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001
 NEXT_PUBLIC_VAPI_ASSISTANT_ID=your-vapi-assistant-id
@@ -90,11 +93,13 @@ npm run dev
 **Base URL:** `http://localhost:3001/api`
 
 ### Authentication
+
 - `POST /api/auth/register` - Register user
 - `POST /api/auth/login` - Login user
 - `GET /api/auth/me` - Get current user
 
 ### Interviews
+
 - `POST /api/interviews` - Start interview
 - `GET /api/interviews` - Get all interviews
 - `GET /api/interviews/:id` - Get interview details
@@ -102,6 +107,7 @@ npm run dev
 - `GET /api/interviews/stats` - Get statistics
 
 ### Other
+
 - `POST /api/transcripts` - Save transcript
 - `POST /api/documents` - Upload resume
 - `GET /api/profile` - Get/Update profile
@@ -180,6 +186,7 @@ See `package.json` files for complete lists.
 ## 🚢 Deployment
 
 **Backend:**
+
 ```bash
 npm run build
 npx prisma migrate deploy
@@ -187,6 +194,7 @@ npm start
 ```
 
 **Frontend:**
+
 ```bash
 npm run build
 npm start
@@ -197,6 +205,7 @@ npm start
 ## 🎯 Status
 
 **Completed (60-80%):**
+
 - ✅ Core AI interview analysis
 - ✅ Real-time VAPI interviews
 - ✅ Transcript processing
@@ -205,6 +214,7 @@ npm start
 - ✅ Resume review
 
 **In Progress:**
+
 - 🔄 Enhanced analytics
 - 🔄 Real-time feedback
 

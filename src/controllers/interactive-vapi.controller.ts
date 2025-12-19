@@ -14,10 +14,8 @@ import { RoundType, Difficulty } from '../types/interview-state.types';
 const extractUserId = (req: Request): string | null => {
   const body = req.body as VapiToolCallRequest;
   return (
-    // From VAPI tool call format
     body.message?.call?.assistantOverrides?.variableValues?.userId ||
     body.message?.artifact?.variableValues?.userId ||
-    // From direct frontend call
     (body as any).userId ||
     null
   );
@@ -29,11 +27,9 @@ const extractUserId = (req: Request): string | null => {
 const extractInterviewId = (req: Request): string | null => {
   const body = req.body as VapiToolCallRequest;
   return (
-    // From VAPI tool call format
     body.message?.call?.assistantOverrides?.variableValues?.interviewId ||
     body.message?.artifact?.variableValues?.interviewId ||
     (body.message?.toolCallList?.[0]?.arguments as any)?.interviewId ||
-    // From direct frontend call
     (body as any).interviewId ||
     null
   );
@@ -55,11 +51,12 @@ const buildResponse = (toolCallId: string, result: unknown): VapiToolCallRespons
  * Get tool call ID and arguments from request
  * Handles both VAPI tool call format and direct frontend calls
  */
-const getToolCallInfo = (req: Request): { toolCallId: string; args: Record<string, unknown>; isDirect: boolean } => {
+const getToolCallInfo = (
+  req: Request,
+): { toolCallId: string; args: Record<string, unknown>; isDirect: boolean } => {
   const body = req.body as VapiToolCallRequest;
   const vapiToolCallId = body.message?.toolCallList?.[0]?.id;
-  
-  // Check if this is a direct call (no VAPI wrapper)
+
   if (!vapiToolCallId && !body.message) {
     return {
       toolCallId: 'direct',
@@ -67,17 +64,13 @@ const getToolCallInfo = (req: Request): { toolCallId: string; args: Record<strin
       isDirect: true,
     };
   }
-  
+
   return {
     toolCallId: vapiToolCallId || '',
     args: (body.message?.toolCallList?.[0]?.arguments || {}) as Record<string, unknown>,
     isDirect: false,
   };
 };
-
-// ============================================================================
-// INTERVIEW INITIALIZATION
-// ============================================================================
 
 /**
  * Initialize interview state when VAPI call starts or frontend directly calls
@@ -86,7 +79,7 @@ const getToolCallInfo = (req: Request): { toolCallId: string; args: Record<strin
 export const initializeInterview = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { toolCallId, args, isDirect } = getToolCallInfo(req);
@@ -119,7 +112,6 @@ export const initializeInterview = async (
       targetId: args.targetId as string | undefined,
     });
 
-    // Return appropriate format based on call type
     if (isDirect) {
       res.json({ success: true, data: result });
     } else {
@@ -130,10 +122,6 @@ export const initializeInterview = async (
   }
 };
 
-// ============================================================================
-// ADAPTIVE QUESTIONING
-// ============================================================================
-
 /**
  * Get the next adaptive question
  * Tool: getNextQuestion
@@ -141,7 +129,7 @@ export const initializeInterview = async (
 export const getNextQuestion = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { toolCallId, args } = getToolCallInfo(req);
@@ -157,22 +145,19 @@ export const getNextQuestion = async (
       previousAnswer: args.previousAnswer as string | undefined,
     });
 
-    // Return just the question text for VAPI to speak, plus metadata
-    res.json(buildResponse(toolCallId, {
-      question: result.question,
-      category: result.category,
-      difficulty: result.difficulty,
-      isFollowUp: result.isFollowUp,
-      questionsRemaining: result.estimatedQuestionsLeft,
-    }));
+    res.json(
+      buildResponse(toolCallId, {
+        question: result.question,
+        category: result.category,
+        difficulty: result.difficulty,
+        isFollowUp: result.isFollowUp,
+        questionsRemaining: result.estimatedQuestionsLeft,
+      }),
+    );
   } catch (error) {
     next(error);
   }
 };
-
-// ============================================================================
-// ANSWER EVALUATION
-// ============================================================================
 
 /**
  * Evaluate a candidate's answer
@@ -181,7 +166,7 @@ export const getNextQuestion = async (
 export const evaluateAnswer = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { toolCallId, args } = getToolCallInfo(req);
@@ -203,24 +188,21 @@ export const evaluateAnswer = async (
       answer: args.answer as string,
     });
 
-    // Return evaluation for VAPI to process
-    res.json(buildResponse(toolCallId, {
-      score: result.score,
-      feedback: result.feedback,
-      strengths: result.strengths,
-      improvements: result.improvements,
-      suggestFollowUp: result.suggestFollowUp,
-      followUpQuestion: result.followUpQuestion,
-      topicMastery: result.topicMastery,
-    }));
+    res.json(
+      buildResponse(toolCallId, {
+        score: result.score,
+        feedback: result.feedback,
+        strengths: result.strengths,
+        improvements: result.improvements,
+        suggestFollowUp: result.suggestFollowUp,
+        followUpQuestion: result.followUpQuestion,
+        topicMastery: result.topicMastery,
+      }),
+    );
   } catch (error) {
     next(error);
   }
 };
-
-// ============================================================================
-// INTERVIEW STATE
-// ============================================================================
 
 /**
  * Get current interview state
@@ -229,7 +211,7 @@ export const evaluateAnswer = async (
 export const getInterviewState = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { toolCallId, args } = getToolCallInfo(req);
@@ -260,7 +242,7 @@ export const getInterviewState = async (
 export const shouldWrapUp = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { toolCallId, args } = getToolCallInfo(req);
@@ -278,10 +260,6 @@ export const shouldWrapUp = async (
   }
 };
 
-// ============================================================================
-// CODING ROUND
-// ============================================================================
-
 /**
  * Present a coding problem
  * Tool: presentCodingProblem
@@ -289,7 +267,7 @@ export const shouldWrapUp = async (
 export const presentCodingProblem = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { toolCallId, args } = getToolCallInfo(req);
@@ -307,14 +285,15 @@ export const presentCodingProblem = async (
       language: args.language as string | undefined,
     });
 
-    // Return speech-friendly description for VAPI
-    res.json(buildResponse(toolCallId, {
-      speechDescription: result.speechDescription,
-      problemTitle: result.problem?.problemTitle,
-      difficulty: result.problem?.difficulty,
-      totalTestCases: result.problem?.totalTestCases,
-      error: result.error,
-    }));
+    res.json(
+      buildResponse(toolCallId, {
+        speechDescription: result.speechDescription,
+        problemTitle: result.problem?.problemTitle,
+        difficulty: result.problem?.difficulty,
+        totalTestCases: result.problem?.totalTestCases,
+        error: result.error,
+      }),
+    );
   } catch (error) {
     next(error);
   }
@@ -327,7 +306,7 @@ export const presentCodingProblem = async (
 export const checkCodeProgress = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { toolCallId, args } = getToolCallInfo(req);
@@ -353,32 +332,48 @@ export const checkCodeProgress = async (
 export const executeCode = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
-    const { toolCallId, args } = getToolCallInfo(req);
+    const { toolCallId, args, isDirect } = getToolCallInfo(req);
     const interviewId = extractInterviewId(req) || (args.interviewId as string);
 
     if (!interviewId) {
-      res.json(buildResponse(toolCallId, { error: 'interviewId not found' }));
+      if (isDirect) {
+        res.status(400).json({ success: false, error: 'interviewId is required' });
+      } else {
+        res.json(buildResponse(toolCallId, { error: 'interviewId not found' }));
+      }
       return;
     }
 
-    // Code and language are optional - service will use current state if not provided
     const result = await interactiveVapiService.executeCode({
       interviewId,
       code: args.code as string | undefined,
       language: args.language as string | undefined,
     });
 
-    // Return speech-friendly feedback
-    res.json(buildResponse(toolCallId, {
-      feedback: result.feedback,
-      allPassed: result.allPassed,
-      testsPassed: result.result.testResults?.filter((t) => t.passed).length || 0,
-      totalTests: result.result.testResults?.length || 0,
-      error: result.result.error,
-    }));
+    if (isDirect) {
+      res.json({
+        success: true,
+        data: {
+          result: result.result,
+          feedback: result.feedback,
+          allPassed: result.allPassed,
+        },
+      });
+      return;
+    }
+
+    res.json(
+      buildResponse(toolCallId, {
+        feedback: result.feedback,
+        allPassed: result.allPassed,
+        testsPassed: result.result.testResults?.filter((t) => t.passed).length || 0,
+        totalTests: result.result.testResults?.length || 0,
+        error: result.result.error,
+      }),
+    );
   } catch (error) {
     next(error);
   }
@@ -391,27 +386,33 @@ export const executeCode = async (
 export const getCodingHint = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
-    const { toolCallId, args } = getToolCallInfo(req);
+    const { toolCallId, args, isDirect } = getToolCallInfo(req);
     const interviewId = extractInterviewId(req) || (args.interviewId as string);
 
     if (!interviewId) {
-      res.json(buildResponse(toolCallId, { error: 'interviewId not found' }));
+      if (isDirect) {
+        res.status(400).json({ success: false, error: 'interviewId is required' });
+      } else {
+        res.json(buildResponse(toolCallId, { error: 'interviewId not found' }));
+      }
       return;
     }
 
     const result = await interactiveVapiService.getCodingHint(interviewId);
+
+    if (isDirect) {
+      res.json({ success: true, data: result });
+      return;
+    }
+
     res.json(buildResponse(toolCallId, result));
   } catch (error) {
     next(error);
   }
 };
-
-// ============================================================================
-// INTERVIEW COMPLETION
-// ============================================================================
 
 /**
  * Complete the interview
@@ -420,7 +421,7 @@ export const getCodingHint = async (
 export const completeInterview = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { toolCallId, args } = getToolCallInfo(req);
@@ -433,11 +434,13 @@ export const completeInterview = async (
 
     const result = await interactiveVapiService.completeInterview(interviewId);
 
-    res.json(buildResponse(toolCallId, {
-      completed: result.completed,
-      farewell: result.farewell,
-      summary: result.summary,
-    }));
+    res.json(
+      buildResponse(toolCallId, {
+        completed: result.completed,
+        farewell: result.farewell,
+        summary: result.summary,
+      }),
+    );
   } catch (error) {
     next(error);
   }

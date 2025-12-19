@@ -30,7 +30,7 @@ export class QuestionGeneratorAgent {
   async generate(
     context: GenerationContext,
     category: QuestionCategory,
-    limit: number
+    limit: number,
   ): Promise<GenerationResult> {
     try {
       const prompt = this.buildPrompt(context, category, limit);
@@ -60,7 +60,7 @@ export class QuestionGeneratorAgent {
           category: q.category || category,
           difficulty: q.difficulty || 'medium',
           context: q.context,
-        })
+        }),
       );
 
       return { questions, tokenUsage };
@@ -76,7 +76,7 @@ export class QuestionGeneratorAgent {
   private buildPrompt(
     context: GenerationContext,
     category: QuestionCategory,
-    limit: number
+    limit: number,
   ): string {
     const { targetRole, targetCompany, level, resumeData } = context;
 

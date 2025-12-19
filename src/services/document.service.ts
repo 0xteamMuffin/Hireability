@@ -20,7 +20,7 @@ export const uploadAndParse = async (
   file: Buffer,
   fileName: string,
   mimeType: string,
-  type: DocumentType = DocumentType.RESUME
+  type: DocumentType = DocumentType.RESUME,
 ): Promise<DocumentResponse> => {
   const rawText = await extractText(file, mimeType);
 
@@ -90,12 +90,10 @@ export const getResumeReview = async (userId: string): Promise<string | null> =>
 
   if (!document) return null;
 
-  // If review exists, return it
   if (document.review) {
     return document.review;
   }
 
-  // If parsedData exists, generate review
   if (document.parsedData) {
     const generator = new ResumeReviewGenerator();
     const review = await generator.generate(document.parsedData);
@@ -110,4 +108,3 @@ export const getResumeReview = async (userId: string): Promise<string | null> =>
 
   return null;
 };
-
