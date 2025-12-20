@@ -1,6 +1,6 @@
 import { GoogleGenAI, HarmBlockThreshold, HarmCategory } from '@google/genai';
 
-const genai = new GoogleGenAI({
+export const genai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY!,
 });
 

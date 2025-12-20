@@ -28,4 +28,8 @@ router.post('/checkCodeProgress', interactiveVapiController.checkCodeProgress);
 router.post('/executeCode', interactiveVapiController.executeCode);
 router.post('/getCodingHint', interactiveVapiController.getCodingHint);
 
+router.post('/generateCodingQuestion', interactiveVapiController.generateCodingQuestion);
+router.post('/evaluateCodingSolution', interactiveVapiController.evaluateCodingSolution);
+router.post('/buildResumeCallContext', interactiveVapiController.buildResumeCallContext);
+
 export default router;

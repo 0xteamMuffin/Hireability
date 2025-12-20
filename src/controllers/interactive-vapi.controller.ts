@@ -445,3 +445,118 @@ export const completeInterview = async (
     next(error);
   }
 };
+
+/**
+ * Generate a coding question from transcript
+ */
+export const generateCodingQuestion = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const body = req.body as {
+      interviewId: string;
+      transcript: Array<{ role: 'user' | 'assistant'; content: string }>;
+    };
+
+    if (!body.interviewId || !body.transcript || body.transcript.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: 'interviewId and transcript are required',
+      });
+      return;
+    }
+
+    const result = await interactiveVapiService.generateCodingQuestion({
+      interviewId: body.interviewId,
+      transcript: body.transcript,
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Evaluate a coding solution
+ */
+export const evaluateCodingSolution = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const body = req.body as {
+      interviewId: string;
+      question: string;
+      solution: string;
+      language?: string;
+    };
+
+    if (!body.interviewId || !body.question || !body.solution) {
+      res.status(400).json({
+        success: false,
+        error: 'interviewId, question, and solution are required',
+      });
+      return;
+    }
+
+    const result = await interactiveVapiService.evaluateCodingSolution({
+      interviewId: body.interviewId,
+      question: body.question,
+      solution: body.solution,
+      language: body.language,
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Build context for resuming a call
+ */
+export const buildResumeCallContext = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const body = req.body as {
+      interviewId: string;
+      previousSystemPrompt: string;
+      previousConversation: Array<{ role: 'user' | 'assistant'; content: string }>;
+      evaluation: {
+        question: string;
+        solution: string;
+        score: number;
+        feedback: string;
+        strengths: string[];
+        improvements: string[];
+        passed: boolean;
+      };
+    };
+
+    if (!body.interviewId || !body.previousSystemPrompt || !body.evaluation) {
+      res.status(400).json({
+        success: false,
+        error: 'interviewId, previousSystemPrompt, and evaluation are required',
+      });
+      return;
+    }
+
+    const result = await interactiveVapiService.buildResumeCallContext({
+      interviewId: body.interviewId,
+      previousSystemPrompt: body.previousSystemPrompt,
+      previousConversation: body.previousConversation || [],
+      evaluation: body.evaluation,
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};

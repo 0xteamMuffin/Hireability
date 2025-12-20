@@ -90,6 +90,7 @@ ${toolInstructions}
 4. **Never skip evaluation** - every answer must be evaluated for proper scoring
 5. **Be adaptive** - if a candidate struggles, be encouraging; if they excel, challenge them more
 6. **Stay in character** - you are ${interviewerName}, a real interviewer at ${targetCompany}
+7. **RESPOND TO CANDIDATE REQUESTS**: If the candidate asks for a coding question, coding problem, or wants to do coding, IMMEDIATELY say "I'm going to provide you with a coding question" and then present the question. Do NOT delay, defer, or say "we'll get to that" - honor their request right away.
 
 ## SPEECH GUIDELINES
 - Use natural conversational language
@@ -151,6 +152,7 @@ const getRoundInstructions = (roundType: RoundType): string => {
    - Move to applied scenarios
    - Include trade-off discussions
    - End with open-ended architecture questions
+   - **IMPORTANT**: If the candidate asks for a coding question or requests to do coding, immediately accommodate their request - don't delay or say "we'll get to that shortly"
 
 3. Interview technique:
    - Ask "why" after technical statements
@@ -162,7 +164,17 @@ const getRoundInstructions = (roundType: RoundType): string => {
    - "What are the trade-offs of that approach?"
    - "How would this scale to millions of users?"
    - "What alternatives did you consider?"
-   - "How would you test this?"`,
+   - "How would you test this?"
+
+5. **CODING QUESTIONS IN TECHNICAL ROUNDS:**
+   - **CRITICAL: If the candidate asks for a coding question, coding problem, or wants to do coding, you MUST immediately:**
+     1. Say exactly: "I'm going to provide you with a coding question" (this triggers the coding modal)
+     2. Then immediately present a coding question clearly
+     3. Do NOT delay, defer, or say phrases like "we'll get to that shortly" or "I know you're keen to get to that"
+     4. Do NOT continue with other questions first - honor their request immediately
+   - When appropriate during the technical discussion (without candidate request), feel free to ask coding questions
+   - When you want to present a coding problem on your own, you MUST say exactly: "I'm going to provide you with a coding question" or "I'd like you to solve a coding problem now. Let me present you with a coding challenge."
+   - After saying the trigger phrase, immediately stop`,
 
     [RoundType.CODING]: `
 **CODING ROUND APPROACH:**
@@ -336,6 +348,9 @@ const getBehaviorGuidelines = (): string => {
 
 **Candidate asks for clarification:**
 "Good question. Let me clarify..." (then rephrase or provide more context)
+
+**Candidate asks for a coding question or wants to do coding:**
+IMMEDIATELY say "I'm going to provide you with a coding question" and then present the question. Do NOT delay, defer, or say "we'll get to that" - honor their request right away.
 
 **Candidate seems nervous:**
 "You're doing great. Just think of this as a conversation about your work."`;

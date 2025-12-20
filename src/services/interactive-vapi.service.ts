@@ -634,3 +634,258 @@ const emitHintProvided = (interviewId: string, hint: string, remaining: number):
 const emitInterviewCompleted = (interviewId: string, summary: InterviewStateSnapshot): void => {
   socketService.emitInterviewCompleted(interviewId, summary);
 };
+
+export interface GenerateCodingQuestionArgs {
+  interviewId: string;
+  transcript: Array<{ role: 'user' | 'assistant'; content: string }>;
+}
+
+/**
+ * Generate a coding question based on interview transcript using Gemini
+ */
+export const generateCodingQuestion = async (
+  args: GenerateCodingQuestionArgs,
+): Promise<{ question: string }> => {
+  const state = interviewStateService.getInterviewState(args.interviewId);
+
+  if (!state) {
+    throw new Error('Interview state not found');
+  }
+
+  const conversationHistory = args.transcript
+    .map((entry) => `${entry.role === 'user' ? 'Candidate' : 'Interviewer'}: ${entry.content}`)
+    .join('\n\n');
+
+  const prompt = `
+You are a technical interviewer conducting a ${state.roundType} interview for a ${state.targetRole || 'Software Engineer'} position at ${state.targetCompany || 'a tech company'}.
+
+**Interview Context:**
+- Role: ${state.targetRole || 'Software Engineer'}
+- Company: ${state.targetCompany || 'Unknown'}
+- Experience Level: ${state.experienceLevel || 'mid-level'}
+- Round Type: ${state.roundType}
+
+**Previous Conversation:**
+${conversationHistory}
+
+Based on the conversation so far, generate an appropriate coding question that:
+1. Is relevant to the role and experience level
+2. Builds on topics discussed in the conversation
+3. Is challenging but fair for the candidate's level
+4. Can be solved in 30-45 minutes
+5. Tests problem-solving, algorithms, and coding skills
+
+Provide a clear, well-structured coding problem with:
+- Problem statement
+- Input/output format
+- Example test cases
+- Constraints (if applicable)
+
+Respond with ONLY the coding question text, no additional commentary or markdown formatting.
+`;
+
+  try {
+    const genaiModule = await import('../utils/gemini.util');
+    const genai = genaiModule.default;
+    const { geminiConfig } = genaiModule;
+    
+    const response = await genai.models.generateContent({
+      model: process.env.MODEL_NAME || 'gemini-flash-latest',
+      config: {
+        ...geminiConfig,
+      },
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    });
+
+    const question = (response.text || '').trim();
+
+    if (!question) {
+      throw new Error('Failed to generate coding question');
+    }
+
+    return { question };
+  } catch (error) {
+    console.error('[generateCodingQuestion] Error:', error);
+    throw new Error('Failed to generate coding question');
+  }
+};
+
+export interface EvaluateCodingSolutionArgs {
+  interviewId: string;
+  question: string;
+  solution: string;
+  language?: string;
+}
+
+/**
+ * Evaluate a coding solution using Gemini
+ */
+export const evaluateCodingSolution = async (
+  args: EvaluateCodingSolutionArgs,
+): Promise<{
+  score: number;
+  feedback: string;
+  strengths: string[];
+  improvements: string[];
+  passed: boolean;
+}> => {
+  const state = interviewStateService.getInterviewState(args.interviewId);
+
+  if (!state) {
+    return {
+      score: 0,
+      feedback: 'Interview state not found',
+      strengths: [],
+      improvements: [],
+      passed: false,
+    };
+  }
+
+  const prompt = `
+You are evaluating a candidate's coding solution during a technical interview.
+
+**Question:**
+${args.question}
+
+**Candidate's Solution (${args.language || 'unknown'}):**
+\`\`\`${args.language || 'text'}
+${args.solution}
+\`\`\`
+
+**Context:**
+- Role: ${state.targetRole || 'Software Engineer'}
+- Company: ${state.targetCompany || 'Unknown'}
+- Experience Level: ${state.experienceLevel || 'mid-level'}
+- Round Type: ${state.roundType}
+
+Evaluate the solution and provide:
+1. A score from 0-10
+2. Detailed feedback
+3. Strengths (array of strings)
+4. Areas for improvement (array of strings)
+5. Whether the solution passed (boolean)
+
+Consider:
+- Correctness and logic
+- Code quality and readability
+- Efficiency (time/space complexity)
+- Edge case handling
+- Best practices
+
+Respond with a JSON object:
+{
+  "score": number,
+  "feedback": string,
+  "strengths": string[],
+  "improvements": string[],
+  "passed": boolean
+}
+`;
+
+  try {
+    const genaiModule = await import('../utils/gemini.util');
+    const genai = genaiModule.default;
+    const { geminiConfig } = genaiModule;
+    const response = await genai.models.generateContent({
+      model: process.env.MODEL_NAME || 'gemini-flash-latest',
+      config: {
+        ...geminiConfig,
+        responseMimeType: 'application/json',
+      },
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    });
+
+    const content = response.text || '{}';
+    const parsed = JSON.parse(content);
+
+    return {
+      score: Math.max(0, Math.min(10, parsed.score || 0)),
+      feedback: parsed.feedback || 'No feedback provided',
+      strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
+      improvements: Array.isArray(parsed.improvements) ? parsed.improvements : [],
+      passed: parsed.passed ?? false,
+    };
+  } catch (error) {
+    console.error('[evaluateCodingSolution] Error:', error);
+    return {
+      score: 5,
+      feedback: 'An error occurred during evaluation',
+      strengths: [],
+      improvements: [],
+      passed: false,
+    };
+  }
+};
+
+export interface ResumeCallArgs {
+  interviewId: string;
+  previousSystemPrompt: string;
+  previousConversation: Array<{ role: 'user' | 'assistant'; content: string }>;
+  evaluation: {
+    question: string;
+    solution: string;
+    score: number;
+    feedback: string;
+    strengths: string[];
+    improvements: string[];
+    passed: boolean;
+  };
+}
+
+/**
+ * Build context for resuming a VAPI call after coding question
+ */
+export const buildResumeCallContext = async (
+  args: ResumeCallArgs,
+): Promise<{ systemPrompt: string; firstMessage: string }> => {
+  const state = interviewStateService.getInterviewState(args.interviewId);
+
+  if (!state) {
+    throw new Error('Interview state not found');
+  }
+
+  const evaluationSummary = `
+**Coding Question Evaluation:**
+
+Question: ${args.evaluation.question}
+
+Candidate's Solution:
+\`\`\`
+${args.evaluation.solution}
+\`\`\`
+
+Score: ${args.evaluation.score}/10
+Passed: ${args.evaluation.passed ? 'Yes' : 'No'}
+
+Feedback: ${args.evaluation.feedback}
+
+Strengths:
+${args.evaluation.strengths.map((s) => `- ${s}`).join('\n')}
+
+Areas for Improvement:
+${args.evaluation.improvements.map((i) => `- ${i}`).join('\n')}
+`;
+
+  const conversationHistory = args.previousConversation
+    .map((entry) => `${entry.role === 'user' ? 'Candidate' : 'Interviewer'}: ${entry.content}`)
+    .join('\n\n');
+
+  const systemPrompt = `${args.previousSystemPrompt}
+
+## CONTINUATION CONTEXT
+
+You are continuing an interview that was paused for a coding question. This is NOT a new interview - you are resuming the same conversation. Act naturally as if the conversation never stopped.
+
+**Previous Conversation History:**
+${conversationHistory}
+
+**Coding Question Session:**
+${evaluationSummary}
+
+Continue the interview naturally. Briefly acknowledge their coding solution (mention the score and one key point from feedback), then seamlessly continue with the technical discussion. Reference previous topics naturally. Make it feel like a continuous conversation, not a restart.
+`;
+
+  const firstMessage = `Great work on that coding problem! ${args.evaluation.passed ? 'Your solution looks solid.' : 'I can see you put effort into it.'} ${args.evaluation.feedback.split('.')[0] || 'Let\'s continue our technical discussion.'}`;
+
+  return { systemPrompt, firstMessage };
+};
