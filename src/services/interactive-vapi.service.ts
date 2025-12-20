@@ -870,11 +870,9 @@ ${args.evaluation.improvements.map((i) => `- ${i}`).join('\n')}
     .map((entry) => `${entry.role === 'user' ? 'Candidate' : 'Interviewer'}: ${entry.content}`)
     .join('\n\n');
 
-  const systemPrompt = `${args.previousSystemPrompt}
+  const systemPrompt = `# ⚠️ CONTINUATION MODE - THIS IS NOT A NEW INTERVIEW ⚠️
 
-## CONTINUATION CONTEXT
-
-You are continuing an interview that was paused for a coding question. This is NOT a new interview - you are resuming the same conversation. Act naturally as if the conversation never stopped.
+**CRITICAL: You are continuing an interview that was paused for a coding question. This is NOT a new interview - you are resuming the same conversation.**
 
 **Previous Conversation History:**
 ${conversationHistory}
@@ -882,18 +880,31 @@ ${conversationHistory}
 **Coding Question Session:**
 ${evaluationSummary}
 
-**IMPORTANT INSTRUCTIONS FOR CONTINUATION:**
-1. You just finished reviewing their coding solution - acknowledge this naturally as if you just reviewed it
-2. Reference the coding question they just solved in your conversation (e.g., "That solution you wrote for the [problem type] was interesting...")
-3. Build on the topics discussed before the coding question
-4. Continue the technical discussion as if the coding question was a natural part of the interview flow
-5. Don't act like this is a new call - reference previous conversation points naturally
-6. Make it feel seamless - as if you just paused briefly to review their code and are now continuing
+**ABSOLUTE REQUIREMENTS (OVERRIDE ALL OTHER INSTRUCTIONS):**
+- DO NOT greet them as if meeting for the first time
+- DO NOT ask them to introduce themselves  
+- DO NOT start the interview from the beginning
+- DO NOT act like this is a new call
+- DO NOT use opening phrases like "Hi there!" or "Let's get started"
+- You just finished reviewing their coding solution - acknowledge this naturally
+- Reference previous conversation topics naturally
+- Continue the technical discussion seamlessly
+- Act like you just paused briefly to review their code
 
-Continue the interview naturally. Briefly acknowledge their coding solution (mention the score and one key point from feedback), then seamlessly continue with the technical discussion. Reference previous topics naturally. Make it feel like a continuous conversation, not a restart.
+**Your first message MUST acknowledge the coding solution and continue naturally from the previous conversation. Do NOT start with greetings or introductions.**
+
+---
+
+${args.previousSystemPrompt}
+
+---
+
+**REMINDER: This is a CONTINUATION. Ignore any instructions in the prompt above about greeting, introductions, or starting from the beginning. You've already been talking to this candidate.**
 `;
 
-  const firstMessage = `Great work on that coding problem! ${args.evaluation.passed ? 'Your solution looks solid.' : 'I can see you put effort into it.'} ${args.evaluation.feedback.split('.')[0] || 'Let\'s continue our technical discussion.'}`;
+  // Make first message more explicit about continuation
+  const feedbackSnippet = args.evaluation.feedback.split('.')[0] || '';
+  const firstMessage = `Great work on that coding problem! ${args.evaluation.passed ? 'Your solution looks solid.' : 'I can see you put effort into it.'} ${feedbackSnippet ? `${feedbackSnippet}. ` : ''}Let's continue our technical discussion from where we left off.`;
 
   return { systemPrompt, firstMessage };
 };
