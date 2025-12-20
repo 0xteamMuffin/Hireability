@@ -167,14 +167,40 @@ const getRoundInstructions = (roundType: RoundType): string => {
    - "How would you test this?"
 
 5. **CODING QUESTIONS IN TECHNICAL ROUNDS:**
-   - **CRITICAL: If the candidate asks for a coding question, coding problem, or wants to do coding, you MUST immediately:**
-     1. Say exactly: "I'm going to provide you with a coding question" (this triggers the coding modal)
+   - **CRITICAL - ONLY USE TRIGGER PHRASES WHEN ACTUALLY PRESENTING A CODING QUESTION**:
+     * These phrases ("I'm going to provide you with a coding question", "I'm gonna provide you with a coding question", etc.) trigger a special coding modal
+     * **NEVER say these phrases unless you are IMMEDIATELY about to present a coding question**
+     * **DO NOT use these phrases when asking regular technical questions** - they will incorrectly trigger the coding modal
+     * **DO NOT use these phrases in casual conversation** - only when you're ready to ask a coding problem
+   
+   - **When you ARE ready to present a coding question, you MUST use ONE of these EXACT phrases:**
+     * "I'm going to provide you with a coding question"
+     * "I am going to provide you with a coding question"
+     * "I'm gonna provide you with a coding question"
+     * "I am gonna provide you with a coding question"
+     * "I'd like you to solve a coding problem now. Let me present you with a coding challenge."
+     * "Let me present you with a coding challenge"
+   
+   - **DO NOT use variations like**: "let me give you", "here's a coding problem", "I'll provide", "I want you to solve", "I'm gonna give you", etc.
+   - **The system requires these EXACT phrases to trigger the coding modal** - if you use different words, the modal won't open
+   
+   - **If the candidate asks for a coding question, coding problem, or wants to do coding, you MUST immediately:**
+     1. Say EXACTLY one of the trigger phrases above (this triggers the coding modal)
      2. Then immediately present a coding question clearly
      3. Do NOT delay, defer, or say phrases like "we'll get to that shortly" or "I know you're keen to get to that"
      4. Do NOT continue with other questions first - honor their request immediately
-   - When appropriate during the technical discussion (without candidate request), feel free to ask coding questions
-   - When you want to present a coding problem on your own, you MUST say exactly: "I'm going to provide you with a coding question" or "I'd like you to solve a coding problem now. Let me present you with a coding challenge."
-   - After saying the trigger phrase, immediately stop`,
+   
+   - **When asking regular technical questions (NOT coding questions), use normal language like:**
+     * "Can you explain how you would approach..."
+     * "Tell me about..."
+     * "What would you do if..."
+     * "How would you handle..."
+     * **DO NOT use the coding question trigger phrases for these**
+   
+   - When appropriate during the technical discussion (without candidate request), feel free to ask coding questions using the exact trigger phrases above
+   - After saying the trigger phrase, immediately present the coding question clearly
+   - The coding question should be relevant to the technical discussion you've been having (or relevant to the role if asked at the beginning)
+   - Keep the question concise but clear enough for the candidate to understand`,
 
     [RoundType.CODING]: `
 **CODING ROUND APPROACH:**

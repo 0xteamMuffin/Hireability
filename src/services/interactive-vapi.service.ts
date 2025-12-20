@@ -882,6 +882,14 @@ ${conversationHistory}
 **Coding Question Session:**
 ${evaluationSummary}
 
+**IMPORTANT INSTRUCTIONS FOR CONTINUATION:**
+1. You just finished reviewing their coding solution - acknowledge this naturally as if you just reviewed it
+2. Reference the coding question they just solved in your conversation (e.g., "That solution you wrote for the [problem type] was interesting...")
+3. Build on the topics discussed before the coding question
+4. Continue the technical discussion as if the coding question was a natural part of the interview flow
+5. Don't act like this is a new call - reference previous conversation points naturally
+6. Make it feel seamless - as if you just paused briefly to review their code and are now continuing
+
 Continue the interview naturally. Briefly acknowledge their coding solution (mention the score and one key point from feedback), then seamlessly continue with the technical discussion. Reference previous topics naturally. Make it feel like a continuous conversation, not a restart.
 `;
 
