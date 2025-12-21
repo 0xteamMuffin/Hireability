@@ -133,12 +133,25 @@ export const getUserContextForUser = async (
 ): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const targetId = req.query.targetId as string | undefined;
+    const sessionId = req.query.sessionId as string | undefined;
     const roundType = req.query.roundType as string | undefined;
 
     if (!userId) {
       res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
+    }
+
+    // Fetch targetId from session if sessionId is provided
+    let targetId: string | undefined;
+    if (sessionId) {
+      try {
+        const sessionService = await import('../services/session.service');
+        const session = await sessionService.getSession(userId, sessionId);
+        targetId = session.targetId || undefined;
+      } catch (error) {
+        console.warn('[vapi.controller] Failed to fetch session:', error);
+        // Continue without targetId if session fetch fails
+      }
     }
 
     const result = await vapiService.getUserContext(userId, targetId, roundType);
