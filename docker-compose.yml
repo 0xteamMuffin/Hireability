@@ -17,6 +17,23 @@ services:
       timeout: 5s
       retries: 5
 
+  scraper:
+    build:
+      context: ./scraper_service
+      dockerfile: Dockerfile
+    container_name: hireability-scraper
+    restart: unless-stopped
+    environment:
+      PORT: 8001
+    networks:
+      - hireability-network
+    healthcheck:
+      test: ['CMD-SHELL', 'python -c "import urllib.request; urllib.request.urlopen(\"http://localhost:8001/\").read()" || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
   backend:
     build:
       context: ./Hireability-backend
@@ -26,10 +43,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      scraper:
+        condition: service_healthy
     env_file:
       - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_SERVICE_URL: http://scraper:8001
       PORT: 5000
       NODE_ENV: production
       CORS_ORIGIN: https://hireability.rkr.cx,http://localhost:3000

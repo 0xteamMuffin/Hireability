@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const SCRAPER_SERVICE_URL = process.env.SCRAPER_SERVICE_URL || 'http://localhost:8001';
+// Use service name in Docker, localhost in development
+const SCRAPER_SERVICE_URL =
+  process.env.SCRAPER_SERVICE_URL ||
+  (process.env.NODE_ENV === 'production' ? 'http://scraper:8001' : 'http://localhost:8001');
 
 export interface ScrapeResult {
   success: boolean;
