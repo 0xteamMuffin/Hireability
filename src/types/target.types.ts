@@ -10,6 +10,8 @@ export interface UpdateTargetInput {
   role?: string;
   companyEmail?: string;
   websiteLink?: string;
+  scrapedContent?: string;
+  scrapedAt?: Date;
 }
 
 export interface TargetResponse {
@@ -19,6 +21,8 @@ export interface TargetResponse {
   role: string;
   companyEmail: string | null;
   websiteLink: string | null;
+  scrapedContent: string | null;
+  scrapedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

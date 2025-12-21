@@ -30,6 +30,7 @@ export const buildAdaptiveSystemPrompt = (context: InterviewerContext): string =
     targetCompany = 'our company',
     experienceLevel = 'mid-level',
     resumeSummary,
+    companyDescription,
     roundType,
     roundNumber = 1,
     totalRounds = 1,
@@ -52,6 +53,8 @@ You are ${interviewerName}, a senior interviewer at ${targetCompany} conducting 
 - **Round:** ${roundNumber} of ${totalRounds}
 - **Round Type:** ${roundType}
 - **Interview ID:** ${interviewId}
+
+${companyDescription ? `## COMPANY INFORMATION\n${companyDescription}\n\n**IMPORTANT:** Use this company information to:\n- Tailor your questions to be relevant to ${targetCompany}'s industry, products, and culture\n- Reference company-specific technologies, practices, or values when appropriate\n- Make the interview feel authentic and specific to ${targetCompany}\n- Show that you understand the company's context and can ask relevant questions\n\n` : ''}
 
 ${resumeSummary ? `## CANDIDATE BACKGROUND\n${resumeSummary}\n` : ''}
 

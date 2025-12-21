@@ -1,5 +1,6 @@
 import { prisma } from '../utils/prisma.util';
 import { CreateTargetInput, UpdateTargetInput, TargetResponse } from '../types/target.types';
+import { scrapeWebsite } from './scraper.service';
 
 export const getTargets = async (userId: string): Promise<TargetResponse[]> => {
   const targets = await prisma.targetCompany.findMany({
@@ -14,6 +15,8 @@ export const getTargets = async (userId: string): Promise<TargetResponse[]> => {
     role: target.role,
     companyEmail: target.companyEmail,
     websiteLink: target.websiteLink,
+    scrapedContent: target.scrapedContent,
+    scrapedAt: target.scrapedAt,
     createdAt: target.createdAt,
     updatedAt: target.updatedAt,
   }));
@@ -33,6 +36,8 @@ export const getTargetById = async (id: string, userId: string): Promise<TargetR
     role: target.role,
     companyEmail: target.companyEmail,
     websiteLink: target.websiteLink,
+    scrapedContent: target.scrapedContent,
+    scrapedAt: target.scrapedAt,
     createdAt: target.createdAt,
     updatedAt: target.updatedAt,
   };
@@ -59,6 +64,8 @@ export const createTarget = async (
     role: target.role,
     companyEmail: target.companyEmail,
     websiteLink: target.websiteLink,
+    scrapedContent: target.scrapedContent,
+    scrapedAt: target.scrapedAt,
     createdAt: target.createdAt,
     updatedAt: target.updatedAt,
   };
@@ -82,6 +89,8 @@ export const updateTarget = async (
       role: data.role,
       companyEmail: data.companyEmail,
       websiteLink: data.websiteLink,
+      scrapedContent: data.scrapedContent,
+      scrapedAt: data.scrapedAt,
     },
   });
 
@@ -92,8 +101,69 @@ export const updateTarget = async (
     role: target.role,
     companyEmail: target.companyEmail,
     websiteLink: target.websiteLink,
+    scrapedContent: target.scrapedContent,
+    scrapedAt: target.scrapedAt,
     createdAt: target.createdAt,
     updatedAt: target.updatedAt,
+  };
+};
+
+/**
+ * Scrape and cache company website content
+ * Returns cached content if available and recent (less than 7 days old)
+ * Otherwise scrapes the website and caches the result
+ */
+export const scrapeAndCacheCompanyContent = async (
+  id: string,
+  userId: string,
+): Promise<{ success: boolean; content?: string; error?: string }> => {
+  const target = await prisma.targetCompany.findFirst({
+    where: { id, userId },
+  });
+
+  if (!target) {
+    return { success: false, error: 'Target company not found' };
+  }
+
+  if (!target.websiteLink) {
+    return { success: false, error: 'No website URL provided' };
+  }
+
+  // Check if we have recent cached content (e.g., less than 7 days old)
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  if (target.scrapedContent && target.scrapedAt && target.scrapedAt > sevenDaysAgo) {
+    console.log('[target.service] Using cached scraped content');
+    return {
+      success: true,
+      content: target.scrapedContent,
+    };
+  }
+
+  // Scrape the website
+  console.log('[target.service] Scraping website:', target.websiteLink);
+  const scrapeResult = await scrapeWebsite(target.websiteLink);
+
+  if (scrapeResult.success && scrapeResult.content) {
+    // Cache the scraped content
+    await prisma.targetCompany.update({
+      where: { id },
+      data: {
+        scrapedContent: scrapeResult.content,
+        scrapedAt: new Date(),
+      },
+    });
+
+    return {
+      success: true,
+      content: scrapeResult.content,
+    };
+  }
+
+  return {
+    success: false,
+    error: scrapeResult.error || 'Failed to scrape website',
   };
 };
 

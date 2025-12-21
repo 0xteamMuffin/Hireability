@@ -57,6 +57,15 @@ export const initializeInterview = async (
       if (target) {
         targetRole = target.role;
         targetCompany = target.companyName;
+
+        // Pre-fetch and cache scraped content (for use in system prompt via vapi.service.ts)
+        if (target.websiteLink) {
+          const targetService = await import('./target.service');
+          // Scrape in background - don't block initialization
+          targetService.scrapeAndCacheCompanyContent(args.targetId, args.userId).catch((err) => {
+            console.warn('[InteractiveVapi] Failed to scrape company website:', err);
+          });
+        }
       }
     }
 

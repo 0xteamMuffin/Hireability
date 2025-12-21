@@ -137,11 +137,23 @@ export const getUserContext = async (
     };
   }
 
+  let companyDescription: string | undefined;
+
   if (targetId) {
     const target = await targetService.getTargetById(targetId, userId);
     if (target) {
       profileResult.data.targetCompany = target.companyName;
       profileResult.data.targetRole = target.role;
+
+      // Fetch scraped content (with caching)
+      if (target.websiteLink) {
+        const scrapeResult = await targetService.scrapeAndCacheCompanyContent(targetId, userId);
+        if (scrapeResult.success && scrapeResult.content) {
+          companyDescription = scrapeResult.content;
+        } else {
+          console.warn('[vapi.service] Failed to scrape company website:', scrapeResult.error);
+        }
+      }
     }
   }
 
@@ -169,6 +181,7 @@ export const getUserContext = async (
     systemPrompt = buildAdaptiveSystemPrompt({
       targetRole: profileResult.data.targetRole || undefined,
       targetCompany: profileResult.data.targetCompany || undefined,
+      companyDescription,
       experienceLevel: profileResult.data.level || undefined,
       resumeSummary,
       roundType: roundType as RoundType,
