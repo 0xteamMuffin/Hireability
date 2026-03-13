@@ -18,6 +18,8 @@ services:
       retries: 5
 
   scraper:
+    profiles:
+      - full
     build:
       context: ./scraper_service
       dockerfile: Dockerfile
@@ -36,23 +38,23 @@ services:
 
   backend:
     build:
-      context: ./Hireability-backend
+      context: .
       dockerfile: Dockerfile
     container_name: hireability-backend
     restart: unless-stopped
+    ports:
+      - "5000:5000"
     depends_on:
       postgres:
-        condition: service_healthy
-      scraper:
         condition: service_healthy
     env_file:
       - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      SCRAPER_SERVICE_URL: http://scraper:8001
+      SCRAPER_SERVICE_URL: ${SCRAPER_SERVICE_URL:-http://scraper:8001}
       PORT: 5000
       NODE_ENV: production
-      CORS_ORIGIN: https://hireability.rkr.cx,http://localhost:3000
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     networks:
       - hireability-network
     healthcheck:
@@ -62,6 +64,8 @@ services:
       retries: 3
 
   frontend:
+    profiles:
+      - full
     build:
       context: ./Hireability-frontend
       dockerfile: Dockerfile
@@ -83,6 +87,8 @@ services:
       - hireability-network
 
   nginx:
+    profiles:
+      - full
     image: nginx:alpine
     container_name: hireability-nginx
     restart: unless-stopped
